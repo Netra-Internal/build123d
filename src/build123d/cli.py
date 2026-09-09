@@ -55,6 +55,7 @@ failures always print a JSON object with ok=false.
 examples:
   b123d probe housing.step
   b123d probe housing.step --strip scrap fastener --json out.json
+  b123d probe board.step --keep-min-z-lt 13.5 --hole-diameter 2.65 2.75
 """
 
 
@@ -87,10 +88,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "probe",
         help="Inventory STEP bodies, bboxes, and cylindrical holes",
         description=(
-            "Load a STEP, optionally strip bodies by exact label, and report "
-            "names, bounding boxes, and holes (center, axis, diameter). "
-            "Match rule: exact equality on Shape.label after import_step "
-            "(import_step replaces space/./() with _)."
+            "Load a STEP, optionally strip bodies by exact label or keep "
+            "them by bounding-box min Z, and report names, bounding boxes, "
+            "and holes (center, axis, diameter). "
+            "Match rule for --strip: exact equality on Shape.label after "
+            "import_step (import_step replaces space/./() with _)."
         ),
     )
     probe_parser.add_argument("step", help="Path to a STEP file")
@@ -103,6 +105,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Exclude bodies whose label equals NAME (exact, repeatable)",
     )
     probe_parser.add_argument(
+        "--keep-min-z-lt",
+        type=float,
+        default=None,
+        metavar="Z",
+        help="Keep bodies whose bounding-box min Z is below Z",
+    )
+    probe_parser.add_argument(
+        "--hole-diameter",
+        nargs=2,
+        type=float,
+        default=None,
+        metavar=("DMIN", "DMAX"),
+        help="Inclusive hole diameter band. Omit to report every hole",
+    )
+    probe_parser.add_argument(
         "--json",
         dest="json_path",
         metavar="PATH",
@@ -111,7 +128,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(list(argv) if argv is not None else None)
     strip = [name for group in args.strip for name in group]
-    return _cmd_probe(args.step, strip, args.json_path)
+    hole_diameter = (
+        (args.hole_diameter[0], args.hole_diameter[1])
+        if args.hole_diameter is not None
+        else None
+    )
+    return _cmd_probe(
+        args.step, strip, args.json_path, args.keep_min_z_lt, hole_diameter
+    )
 
 
 def console_main() -> None:
@@ -119,7 +143,13 @@ def console_main() -> None:
     raise SystemExit(main())
 
 
-def _cmd_probe(step: str, strip: list[str], json_path: str | None) -> int:
+def _cmd_probe(
+    step: str,
+    strip: list[str],
+    json_path: str | None,
+    keep_min_z_lt: float | None = None,
+    hole_diameter: tuple[float, float] | None = None,
+) -> int:
     path = Path(step)
     if not path.is_file():
         payload = {
@@ -131,8 +161,17 @@ def _cmd_probe(step: str, strip: list[str], json_path: str | None) -> int:
         _write_json(payload, json_path)
         return EXIT_NOT_FOUND
 
+    keep = None
+    if keep_min_z_lt is not None:
+        threshold = keep_min_z_lt
+
+        def keep(body, z=threshold):
+            return body.bounding_box().min.Z < z
+
     try:
-        result = probe(path, strip=strip)
+        result = probe(
+            path, strip=strip, keep=keep, hole_diameter=hole_diameter
+        )
     except FileNotFoundError as exc:
         payload = {
             "ok": False,
@@ -153,15 +192,19 @@ def _cmd_probe(step: str, strip: list[str], json_path: str | None) -> int:
         return EXIT_ERROR
 
     if not result.bodies:
-        error = "empty_after_strip" if strip else "empty"
+        if keep_min_z_lt is not None:
+            error = "empty_after_filter"
+            message = "no bodies remained after keep/drop"
+        elif strip:
+            error = "empty_after_strip"
+            message = "no bodies remained after strip"
+        else:
+            error = "empty"
+            message = "STEP contained no solid bodies"
         payload = {
             "ok": False,
             "error": error,
-            "message": (
-                "no bodies remained after strip"
-                if strip
-                else "STEP contained no solid bodies"
-            ),
+            "message": message,
             "path": step,
             "strip": list(strip),
         }

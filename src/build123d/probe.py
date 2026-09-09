@@ -8,7 +8,8 @@ date: September 9th 2026
 desc:
     Library-first STEP inventory. Trust measured geometry: body names, bounding
     boxes, and cylindrical holes (center, axis, diameter). Strip contaminating
-    bodies by exact label. STEP metadata is treated as untrusted.
+    bodies by exact label or by keep/drop predicates. Filter holes with an
+    explicit diameter band. STEP metadata is treated as untrusted.
 
 license:
 
@@ -30,11 +31,11 @@ license:
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from math import pi
 from os import PathLike
-from typing import Any
+from typing import Any, TypeAlias
 
 from build123d.build_enums import GeomType
 from build123d.geometry import TOLERANCE, Axis, BoundBox, Vector
@@ -55,6 +56,8 @@ _AXIS_ANGLE_TOL_DEG = 0.1
 _AXIS_LINEAR_TOL = 1e-4
 _AXIS_GAP_TOL = 1e-3
 _MIN_HOLE_SPAN_RAD = pi
+
+BodyPredicate: TypeAlias = Callable[[Shape], bool]
 
 
 @dataclass(frozen=True)
@@ -81,7 +84,7 @@ class ProbedHole:
 
 @dataclass(frozen=True)
 class ProbedBody:
-    """One solid/body after optional name strip."""
+    """One solid/body after optional name strip and geometric keep/drop."""
 
     name: str
     bbox: BoundBox
@@ -119,6 +122,10 @@ class ProbeResult:
 def probe(
     source: PathLike | str | bytes | Shape,
     strip: str | Iterable[str] | None = None,
+    *,
+    keep: BodyPredicate | None = None,
+    drop: BodyPredicate | None = None,
+    hole_diameter: tuple[float, float] | None = None,
 ) -> ProbeResult:
     """Inventory bodies and cylindrical holes from a STEP or Shape.
 
@@ -135,25 +142,43 @@ def probe(
             sanitizes labels by replacing space, ``.``, ``(``, and ``)``
             with ``_`` — probe first, then strip using the names it
             reports. Names that match no body are ignored.
+        keep: If set, keep a body only when this returns true for the
+            body's :class:`Shape`. Use this when labels are empty, e.g.
+            ``keep=lambda body: body.bounding_box().min.Z < 13.5``.
+        drop: If set, drop a body when this returns true. Applied after
+            ``strip`` and ``keep``. A body remains when its name is not
+            stripped, ``keep`` is true or omitted, and ``drop`` is false
+            or omitted.
+        hole_diameter: Inclusive ``(dmin, dmax)`` band. Omit it to report
+            every detected hole. The library does not apply a default
+            band. Callers who need one diameter and not a nearby one
+            must pass a band that separates them.
 
     Returns:
         ProbeResult: Remaining bodies with names, axis-aligned bounding
         boxes, and holes. Each hole has ``center``, unit ``axis``, and
         ``diameter``. An empty ``bodies`` tuple means nothing remained
-        (including after strip); the library does not raise in that case.
+        (including after strip or keep/drop); the library does not raise
+        in that case.
     """
 
     root = source if isinstance(source, Shape) else import_step(source)
     excluded = _strip_names(strip)
+    band = _diameter_band(hole_diameter)
     bodies: list[ProbedBody] = []
     for name, body in _iter_bodies(root):
-        if name in excluded:
+        if not _accept_body(name, body, excluded, keep, drop):
             continue
+        holes = _detect_holes(body)
+        if band is not None:
+            holes = tuple(
+                hole for hole in holes if band[0] <= hole.diameter <= band[1]
+            )
         bodies.append(
             ProbedBody(
                 name=name,
                 bbox=body.bounding_box(),
-                holes=_detect_holes(body),
+                holes=holes,
                 shape=body,
             )
         )
@@ -166,6 +191,40 @@ def _strip_names(strip: str | Iterable[str] | None) -> set[str]:
     if isinstance(strip, str):
         return {strip}
     return set(strip)
+
+
+def _accept_body(
+    name: str,
+    body: Shape,
+    excluded: set[str],
+    keep: BodyPredicate | None,
+    drop: BodyPredicate | None,
+) -> bool:
+    if name in excluded:
+        return False
+    if keep is not None and not keep(body):
+        return False
+    if drop is not None and drop(body):
+        return False
+    return True
+
+
+def _diameter_band(
+    value: tuple[float, float] | None,
+) -> tuple[float, float] | None:
+    if value is None:
+        return None
+    try:
+        pair = tuple(value)
+    except TypeError as exc:
+        raise ValueError("hole_diameter must be a (dmin, dmax) pair") from exc
+    if len(pair) != 2:
+        raise ValueError("hole_diameter must be a (dmin, dmax) pair")
+    dmin = float(pair[0])
+    dmax = float(pair[1])
+    if dmin > dmax:
+        raise ValueError("hole_diameter min must be <= max")
+    return dmin, dmax
 
 
 def _iter_bodies(shape: Shape) -> Iterator[tuple[str, Shape]]:
