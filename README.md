@@ -261,6 +261,22 @@ pip install git+https://github.com/gumyr/build123d
 
 build123d is best used with a viewer. The most popular viewer is [ocp_vscode](https://github.com/bernhard-42/vscode-ocp-cad-viewer), a Python package with a standalone viewer and VS Code extension. Other [Editors & Viewers](https://build123d.readthedocs.io/en/latest/external.html#external) are found in the documentation.
 
+### Netra headless render
+
+`render(...)` writes a PNG or other still without Fusion, Onshape, or a GUI. Call it from `*_b123d.py` scripts when you want a glance at an assembly. Printed parts stay opaque. Imported parts can be translucent. Pass `section=` for a plane cut.
+
+```python
+from build123d import Box, Color, Cylinder, Plane, Pos, render
+
+printed = Box(40, 20, 6)
+printed.color = Color("orange")
+imported = Pos(0, 0, 0) * Cylinder(4, 24)
+imported.color = Color("steelblue", 0.35)
+render([printed, imported], view="iso", out="assy.png", section=Plane.YZ)
+```
+
+View presets: `iso`, `front`, `back`, `top`, `bottom`, `right`, `left`. No extra install. Rasterization uses numpy plus Pillow (already a build123d dependency via threejs-materials).
+
 ## Contributing
 
 build123d is a rapidly growing project and we welcome all contributions. Whether you want to share ideas, report bugs, or implement new features, your contribution is welcome! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) file to get started.
