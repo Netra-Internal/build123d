@@ -150,18 +150,14 @@ _INSERTS = {
     )
 }
 
-_INSERT_ALIASES = {
-    "m3": ALLOWED_INSERT_SIZE,
-    "M3-0.5": ALLOWED_INSERT_SIZE,
-    "m3-0.5": ALLOWED_INSERT_SIZE,
-}
-
-
 def _normalize_insert_size(size: str) -> str:
-    key = size.strip()
-    if key in _INSERTS:
-        return key
-    return _INSERT_ALIASES.get(key, key)
+    token = size.strip().upper()
+    if token in _INSERTS:
+        return token
+    for spec in _INSERTS.values():
+        if token == spec.thread.upper():
+            return spec.size
+    return token
 
 
 def self_tap_pilot(major: float) -> float:
