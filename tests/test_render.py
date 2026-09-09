@@ -56,8 +56,6 @@ def _file_digest(path: str) -> str:
 
 
 class TestRenderLibrary(unittest.TestCase):
-    """render() is the product. Headless stills of synthetic solids."""
-
     def setUp(self):
         os.environ.pop("DISPLAY", None)
 
@@ -71,7 +69,7 @@ class TestRenderLibrary(unittest.TestCase):
             image = Image.open(path)
             self.assertEqual(image.size, (96, 72))
 
-    def test_shape_color_opaque_is_redder_than_translucent(self):
+    def test_translucent_washes_toward_white(self):
         opaque = Box(12, 8, 5)
         opaque.color = Color(0.9, 0.05, 0.05, 1.0)
         glass = Box(12, 8, 5)
@@ -87,7 +85,6 @@ class TestRenderLibrary(unittest.TestCase):
 
         self.assertGreater(opaque_rgb[0], opaque_rgb[1] + 40)
         self.assertGreater(opaque_rgb[0], opaque_rgb[1])
-        # Translucent composites onto white, so G and B rise.
         self.assertGreater(glass_rgb[1], opaque_rgb[1])
         self.assertGreater(glass_rgb[2], opaque_rgb[2])
         self.assertGreater(glass_rgb.sum(), opaque_rgb.sum())
@@ -124,18 +121,17 @@ class TestRenderLibrary(unittest.TestCase):
             self.assertTrue(Path(cut).read_bytes().startswith(b"\x89PNG"))
 
     def test_section_cut_dataclass_keep_bottom(self):
-        # Offset so TOP and BOTTOM have different volume after the YZ cut.
-        block = Pos(4, 0, 0) * Box(16, 8, 8)
+        offset_from_yz = Pos(4, 0, 0) * Box(16, 8, 8)
 
         with tempfile.TemporaryDirectory() as tmp:
             top = render(
-                block,
+                offset_from_yz,
                 out=_png_path(tmp, "top.png"),
                 size=(80, 64),
                 section=SectionCut(Plane.YZ, keep=Keep.TOP),
             )
             bottom = render(
-                block,
+                offset_from_yz,
                 out=_png_path(tmp, "bottom.png"),
                 size=(80, 64),
                 section=SectionCut(Plane.YZ, keep=Keep.BOTTOM),

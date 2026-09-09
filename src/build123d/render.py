@@ -45,6 +45,7 @@ from PIL import Image
 from build123d.build_enums import Keep
 from build123d.geometry import Color, ColorLike, Plane, Vector, VectorLike
 from build123d.mesher import Mesher
+from build123d.topology.composite import Compound
 from build123d.topology.shape_core import Shape
 
 __all__ = [
@@ -107,13 +108,13 @@ def render(
         view: Preset name (``iso``, ``front``, ``back``, ``top``,
             ``bottom``, ``right``, ``left``) or a ``ViewPreset``.
         out: Destination path. Suffix selects the still format (``.png``,
-            ``.jpg``, ``.webp``, and others). Pillow writes the file.
+            ``.jpg``, ``.webp``, and others).
         size: ``(width, height)`` in pixels.
         appearances: Optional per-shape color override (object identity).
             Unlisted shapes use ``Shape.color`` or a default gold.
-            Alpha < 1 is translucent (imported parts).
+            Alpha < 1 is translucent.
         section: Plane or ``SectionCut`` that bisects each body and keeps
-            one side. Use this instead of opening the STEP in Fusion.
+            one side.
         background: Clear color. Alpha is ignored; the still is RGB.
         look_at: Camera target. Defaults to the combined bounding-box
             center.
@@ -203,7 +204,7 @@ def _collect_bodies(
     inherited: Color | None,
 ) -> list[tuple[Shape, Color]]:
     color = _color_of(item, by_id, inherited)
-    children = getattr(item, "children", None) or []
+    children = item.children if isinstance(item, Compound) else []
     if children:
         collected: list[tuple[Shape, Color]] = []
         for child in children:
