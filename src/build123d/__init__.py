@@ -41,6 +41,14 @@ from build123d.print import (
     export_for_print,
     print_check,
 )
+from build123d.plates import (
+    A1_MINI_BED,
+    PartDoesNotFitError,
+    PlateAssignment,
+    PlatePackResult,
+    inspect_plate_3mf,
+    pack_plates,
+)
 from build123d.fasteners import (
     BomResult,
     BomRow,
@@ -269,6 +277,12 @@ __all__ = [
     "OverhangRecord",
     "WallRecord",
     "IslandRecord",
+    "pack_plates",
+    "inspect_plate_3mf",
+    "PlatePackResult",
+    "PlateAssignment",
+    "PartDoesNotFitError",
+    "A1_MINI_BED",
     "render",
     "show",
     "ViewPreset",

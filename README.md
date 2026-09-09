@@ -295,6 +295,30 @@ Optional CLI wrapper:
 b123d print-check file.step
 ```
 
+Pack several parts onto one or more A1 mini plates and write a 3MF with an explicit plate for every part. Bambu CLI `-arrange` does not spill onto a new plate, so an unfitting part can sit off-bed and never be sliced. `pack_plates` never drops a part. A part whose XY footprint is larger than the usable bed raises `PartDoesNotFitError` and does not write the 3MF.
+
+The physical bed default is A1 mini `180 x 180`. `edge_margin` (default `2`) insets from that bed. Usable size is the bed after the inset, `176 x 176` at the defaults. `part_gap` (default `8`) is the space between parts on a plate.
+
+This library does not slice. Slice later with `bambu_slice.py` or the Bambu CLI.
+
+```py
+from build123d import Box, pack_plates
+
+result = pack_plates(
+    [Box(20, 20, 20), Box(20, 20, 20)],
+    out="plates.3mf",
+)
+assert result.ok
+```
+
+Optional CLI wrapper:
+
+```
+b123d pack-plates a.stl b.stl --out plates.3mf
+```
+
+`inspect_plate_3mf` opens the 3MF zip and reads `Metadata/netra_plates.json` plus `Metadata/model_settings.config`. Tests and agents use that. They do not need Bambu Studio.
+
 Workspace fastener policy for printed parts lives in `fasteners`. Heat-set inserts are M3 only (hole Ø4.0, length 6.0). Self-tap pilots are 0.84 × major, rounded to 0.1 mm (M3 → ø2.5). Screw heads sit at least 3 mm below the mating face. Screw length is the smallest ISO preferred size that covers `sum(stack) + engagement`.
 
 ```py
