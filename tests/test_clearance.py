@@ -199,9 +199,8 @@ class TestClearanceSweep(unittest.TestCase):
             steps=5,
         )
         self.assertFalse(result.ok)
-        self.assertTrue(
-            any(step.colliding == ("box",) for step in result.sweep.steps)
-        )
+        self.assertEqual(result.sweep.steps[3].colliding, ("box",))
+        self.assertEqual(result.sweep.steps[4].colliding, ("box",))
 
     def test_moving_index_selects_body(self):
         result = clearance(
