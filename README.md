@@ -302,6 +302,15 @@ render([printed, imported], view="iso", out="assy.png", section=Plane.YZ)
 
 View presets: `iso`, `front`, `back`, `top`, `bottom`, `right`, `left`. No extra install. Rasterization uses numpy plus Pillow (already a build123d dependency via threejs-materials).
 
+`show(...)` writes one HTML file with the mesh embedded as glTF JSON. Open that file in a browser to orbit, pan, and zoom. `render(...)` writes a static still of the same colors and optional `section=`. The browser loads three.js 0.170.0 from jsDelivr once. You do not need a local server.
+
+```python
+from build123d import show
+path = show([printed, imported], out="assy.html")
+```
+
+`show` prints the absolute path and returns it. Open the committed example with `open examples/netra_viewer/assy.html` on macOS or `xdg-open examples/netra_viewer/assy.html` on Linux. After `pip install -e .`, regenerate both the HTML and the PNG still with `python examples/netra_viewer/make_assy.py`.
+
 ## Contributing
 
 build123d is a rapidly growing project and we welcome all contributions. Whether you want to share ideas, report bugs, or implement new features, your contribution is welcome! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) file to get started.

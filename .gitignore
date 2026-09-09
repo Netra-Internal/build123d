@@ -38,6 +38,7 @@ docs/_build/
 
 # Test fixtures override the patterns above
 !tests/assets/**
+!examples/netra_viewer/**
 
 #mypy cache
 .mypy_cache
