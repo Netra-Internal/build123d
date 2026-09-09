@@ -55,6 +55,13 @@ def _file_digest(path: str) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def _nonwhite_xy(pixels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    ys, xs = np.nonzero(pixels.sum(axis=2) < 750)
+    if xs.size == 0:
+        raise AssertionError("image has no non-white pixels")
+    return xs, ys
+
+
 class TestRenderLibrary(unittest.TestCase):
     def setUp(self):
         os.environ.pop("DISPLAY", None)
@@ -137,6 +144,37 @@ class TestRenderLibrary(unittest.TestCase):
                 section=SectionCut(Plane.YZ, keep=Keep.BOTTOM),
             )
             self.assertNotEqual(_file_digest(str(top)), _file_digest(str(bottom)))
+
+    def test_section_cut_keeps_uncut_camera_frame(self):
+        left = Pos(-12, 0, 0) * Box(6, 6, 6)
+        right = Pos(12, 0, 0) * Box(6, 6, 6)
+        size = (200, 120)
+        mid_x = size[0] / 2.0
+
+        with tempfile.TemporaryDirectory() as tmp:
+            uncut = render(
+                [left, right],
+                view="front",
+                out=_png_path(tmp, "uncut.png"),
+                size=size,
+            )
+            cut = render(
+                [left, right],
+                view="front",
+                out=_png_path(tmp, "cut.png"),
+                size=size,
+                section=Plane.YZ,
+            )
+            uncut_px = np.asarray(Image.open(uncut).convert("RGB"))
+            cut_px = np.asarray(Image.open(cut).convert("RGB"))
+
+        u_xs, u_ys = _nonwhite_xy(uncut_px)
+        c_xs, c_ys = _nonwhite_xy(cut_px)
+        right_side = u_xs >= mid_x
+        self.assertGreater(c_xs.mean(), mid_x)
+        self.assertLess(abs(float(c_xs.mean()) - float(u_xs[right_side].mean())), 4)
+        self.assertLess(abs(float(c_ys.mean()) - float(u_ys[right_side].mean())), 4)
+        self.assertLess(c_xs.max() - c_xs.min(), (u_xs.max() - u_xs.min()) * 0.7)
 
     def test_front_view_differs_from_iso(self):
         part = Box(10, 4, 6)
