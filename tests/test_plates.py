@@ -43,6 +43,7 @@ class TestPackPlates(unittest.TestCase):
         self.assertEqual(result.edge_margin, 2.0)
         self.assertEqual(result.part_gap, 8.0)
         self.assertEqual(result.usable, (176.0, 176.0))
+        self.assertEqual(result.part_count, 4)
         self.assertEqual(result.plate_count, 1)
         self.assertIsNone(result.path)
         names = [item.name for item in result.assignments]
@@ -58,6 +59,7 @@ class TestPackPlates(unittest.TestCase):
         payload = result.to_dict()
         json.dumps(payload)
         self.assertTrue(payload["ok"])
+        self.assertEqual(payload["part_count"], 4)
         self.assertEqual(payload["plate_count"], 1)
         self.assertEqual(payload["usable"], [176.0, 176.0])
         encoded_names = [item["name"] for item in payload["assignments"]]
@@ -72,6 +74,7 @@ class TestPackPlates(unittest.TestCase):
         )
         self.assertTrue(result.ok)
         self.assertEqual(result.usable, (36.0, 36.0))
+        self.assertEqual(result.part_count, 2)
         self.assertEqual(result.plate_count, 2)
         names = [item.name for item in result.assignments]
         self.assertEqual(names, ["part[0]", "part[1]"])

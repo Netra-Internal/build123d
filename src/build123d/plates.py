@@ -112,16 +112,18 @@ class PlatePackResult:
     part_gap: float
     usable: tuple[float, float]
     assignments: tuple[PlateAssignment, ...]
+    part_count: int
     plate_count: int
     path: str | None
 
     @property
     def ok(self) -> bool:
-        """True iff every input part has exactly one assignment."""
-        if not self.assignments:
-            return False
+        """True when ``len(assignments) == part_count`` and plates are ``1..plate_count``."""
         plates = {item.plate for item in self.assignments}
-        return plates == set(range(1, self.plate_count + 1))
+        return (
+            len(self.assignments) == self.part_count
+            and plates == set(range(1, self.plate_count + 1))
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """JSON-ready pack report."""
@@ -131,6 +133,7 @@ class PlatePackResult:
             "part_gap": self.part_gap,
             "usable": list(self.usable),
             "assignments": [item.to_dict() for item in self.assignments],
+            "part_count": self.part_count,
             "plate_count": self.plate_count,
             "path": self.path,
             "ok": self.ok,
@@ -225,6 +228,7 @@ def pack_plates(
         part_gap=gap_value,
         usable=usable,
         assignments=tuple(assignments),
+        part_count=len(loaded),
         plate_count=max(item.plate for item in assignments),
         path=path,
     )

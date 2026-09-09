@@ -532,15 +532,6 @@ def _cmd_pack_plates(
         }
         _write_json(payload, json_path)
         return EXIT_NOT_FOUND
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        payload = {
-            "ok": False,
-            "error": "pack_plates_failed",
-            "message": str(exc),
-            "path": out,
-        }
-        _write_json(payload, json_path)
-        return EXIT_ERROR
 
     payload = {"ok": True, "path": result.path, "pack_plates": result.to_dict()}
     _write_json(payload, json_path)
