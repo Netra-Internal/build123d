@@ -226,6 +226,31 @@ b123d probe path/to/file.step --keep-min-z-lt 13.5 --hole-diameter 2.65 2.75
 
 Exit codes: `0` success, `2` missing file or usage error, `3` no bodies left (empty STEP or everything stripped), `1` other error. Every failure prints JSON with `"ok": false`.
 
+Check assembled gaps and insertion before printing. `clearance(...)` builds a min-gap matrix with real OCCT distance (`Shape.distance_to_with_closest_points`). Each pair must meet caller `slip`. A sweep along an axis samples a volume intersect at every offset, so a mid-path hit cannot hide behind a clear seated pose.
+
+```py
+from build123d import Axis, clearance
+
+report = clearance("housing.step", slip=0.2)
+assert report.ok
+report = clearance(
+    "housing.step",
+    slip=0.2,
+    moving="pin",
+    axis=Axis.Z,
+    travel=12,
+    steps=8,
+)
+assert report.ok
+```
+
+Optional CLI wrapper:
+
+```
+b123d clearance path/to/file.step --slip 0.2
+b123d clearance path/to/file.step --slip 0 --moving pin --axis 0 0 1 --travel 12
+```
+
 ### Further reading
 
 More [Examples](https://build123d.readthedocs.io/en/latest/introductory_examples.html) and [Tutorials](https://build123d.readthedocs.io/en/latest/tutorials.html) are found in the documentation.

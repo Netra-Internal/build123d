@@ -7,7 +7,7 @@ date: September 9th 2026
 
 desc:
     Thin agent-facing CLI over the build123d library. The product is the
-    Python API; this module only wraps ``probe`` as ``b123d probe``. Do not
+    Python API; this module wraps ``probe`` and ``clearance``. Do not
     add CRUD / "create-box" style commands here.
 
 license:
@@ -36,6 +36,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, NoReturn
 
+from build123d.clearance import clearance
+from build123d.geometry import Axis
 from build123d.probe import probe
 
 EXIT_OK = 0
@@ -56,6 +58,8 @@ examples:
   b123d probe housing.step
   b123d probe housing.step --strip scrap fastener --json out.json
   b123d probe board.step --keep-min-z-lt 13.5 --hole-diameter 2.65 2.75
+  b123d clearance housing.step --slip 0.2
+  b123d clearance housing.step --slip 0 --moving pin --axis 0 0 1 --travel 12
 """
 
 
@@ -126,7 +130,73 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Also write the JSON report to PATH",
     )
 
+    clearance_parser = subparsers.add_parser(
+        "clearance",
+        help="Min-gap matrix and optional swept insertion",
+        description=(
+            "Load a STEP, measure real pairwise distances, and assert "
+            "each gap is at least --slip. Optional --moving / --axis / "
+            "--travel samples intersects along an insertion path."
+        ),
+    )
+    clearance_parser.add_argument("step", help="Path to a STEP file")
+    clearance_parser.add_argument(
+        "--slip",
+        type=float,
+        required=True,
+        metavar="FLOAT",
+        help="Minimum allowed gap between bodies",
+    )
+    clearance_parser.add_argument(
+        "--moving",
+        default=None,
+        metavar="NAME",
+        help="Body label to translate during the sweep",
+    )
+    clearance_parser.add_argument(
+        "--axis",
+        nargs=3,
+        type=float,
+        default=None,
+        metavar=("X", "Y", "Z"),
+        help="Insertion direction (three floats)",
+    )
+    clearance_parser.add_argument(
+        "--travel",
+        type=float,
+        default=None,
+        metavar="FLOAT",
+        help="Inclusive sweep length along --axis",
+    )
+    clearance_parser.add_argument(
+        "--steps",
+        type=int,
+        default=8,
+        metavar="N",
+        help="Inclusive sample count along the sweep (default 8, min 2)",
+    )
+    clearance_parser.add_argument(
+        "--json",
+        dest="json_path",
+        metavar="PATH",
+        help="Also write the JSON report to PATH",
+    )
+
     args = parser.parse_args(list(argv) if argv is not None else None)
+    if args.command == "clearance":
+        moving = args.moving
+        if moving is not None and moving.isdigit():
+            moving = int(moving)
+        axis = None if args.axis is None else Axis((0, 0, 0), args.axis)
+        return _cmd_clearance(
+            args.step,
+            args.slip,
+            moving,
+            axis,
+            args.travel,
+            args.steps,
+            args.json_path,
+        )
     strip = [name for group in args.strip for name in group]
     hole_diameter = (
         (args.hole_diameter[0], args.hole_diameter[1])
@@ -169,9 +239,7 @@ def _cmd_probe(
             return body.bounding_box().min.Z < z
 
     try:
-        result = probe(
-            path, strip=strip, keep=keep, hole_diameter=hole_diameter
-        )
+        result = probe(path, strip=strip, keep=keep, hole_diameter=hole_diameter)
     except FileNotFoundError as exc:
         payload = {
             "ok": False,
@@ -212,6 +280,68 @@ def _cmd_probe(
         return EXIT_EMPTY
 
     payload = {"ok": True, "path": str(path), **result.to_dict()}
+    _write_json(payload, json_path)
+    return EXIT_OK
+
+
+def _cmd_clearance(
+    step: str,
+    slip: float,
+    moving: str | int | None,
+    axis: Axis | None,
+    travel: float | None,
+    steps: int,
+    json_path: str | None,
+) -> int:
+    path = Path(step)
+    if not path.is_file():
+        payload = {
+            "ok": False,
+            "error": "file_not_found",
+            "message": f"STEP file not found: {step}",
+            "path": step,
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+
+    try:
+        result = clearance(
+            path,
+            slip=slip,
+            moving=moving,
+            axis=axis,
+            travel=travel,
+            steps=steps,
+        )
+    except FileNotFoundError as exc:
+        payload = {
+            "ok": False,
+            "error": "file_not_found",
+            "message": str(exc),
+            "path": step,
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+    except ValueError as exc:
+        payload = {
+            "ok": False,
+            "error": "usage",
+            "message": str(exc),
+            "path": step,
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        payload = {
+            "ok": False,
+            "error": "clearance_failed",
+            "message": str(exc),
+            "path": step,
+        }
+        _write_json(payload, json_path)
+        return EXIT_ERROR
+
+    payload = {"ok": True, "path": str(path), "clearance": result.to_dict()}
     _write_json(payload, json_path)
     return EXIT_OK
 
