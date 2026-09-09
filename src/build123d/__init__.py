@@ -26,6 +26,7 @@ from build123d.exporters3d import *
 from build123d.text import available_fonts, FontManager
 from build123d.brep_from_stl import detect_primitives
 from build123d.probe import ProbedBody, ProbedHole, ProbeResult, probe
+from build123d.render import SectionCut, ViewPreset, render
 from build123d.build_constants import (
     MC,
     MM,
@@ -218,6 +219,9 @@ __all__ = [
     "ProbedBody",
     "ProbedHole",
     "ProbeResult",
+    "render",
+    "ViewPreset",
+    "SectionCut",
     # Other functions
     "delta",
     "edges_to_wires",
