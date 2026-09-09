@@ -41,6 +41,16 @@ from build123d.print import (
     export_for_print,
     print_check,
 )
+from build123d.fasteners import (
+    BomResult,
+    BomRow,
+    InsertSpec,
+    RecessCheck,
+    bom_screws,
+    check_recess,
+    insert_spec,
+    self_tap_pilot,
+)
 from build123d.mate import MateResult, mate
 from build123d.probe import ProbedBody, ProbedHole, ProbeResult, probe
 from build123d.render import SectionCut, ViewPreset, render
@@ -240,6 +250,14 @@ __all__ = [
     "SweepStep",
     "mate",
     "MateResult",
+    "self_tap_pilot",
+    "insert_spec",
+    "check_recess",
+    "bom_screws",
+    "InsertSpec",
+    "RecessCheck",
+    "BomRow",
+    "BomResult",
     "probe",
     "ProbedBody",
     "ProbedHole",
