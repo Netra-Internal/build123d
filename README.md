@@ -251,6 +251,23 @@ b123d clearance path/to/file.step --slip 0.2
 b123d clearance path/to/file.step --slip 0 --moving pin --axis 0 0 1 --travel 12
 ```
 
+Place a part by matching a hole or a face instead of typing Locations. `mate` wraps `RigidJoint.connect_to`. The fixed part stays. The moving part is relocated so the two features coincide.
+
+```py
+from build123d import Box, Cylinder, Pos, mate
+
+# Pi-style plate hole onto a standoff hole (synthetic; no vendor STEP).
+plate = Pos(30, 10, 0) * (Box(40, 30, 2) - Cylinder(1.4, 6))
+standoff = Box(8, 8, 12) - Cylinder(1.25, 16)
+result = mate(standoff, plate, fixed_feature=0, moving_feature=0)
+# plate hole center is now on the standoff hole center; axes align
+assert abs(result.location.position.X) < 1e-6
+```
+
+An int is a hole index from `probe`. You can also pass a `ProbedHole`, `Face`, `Plane`, or `Location`. Missing or out-of-range features raise `ValueError`.
+
+Kinematic sweep of a `CylindricalJoint` degree of freedom is a follow-up. This release is a RigidJoint mate only.
+
 Check printability before you send a part to a slicer. `print_check(...)` flags overhangs, thin walls, and disconnected solids.
 
 An overhang flags when the face angle from vertical is greater than `overhang_deg` (default 45°). A 45° face is OK. Wall thickness is an inward `offset` collapse, not a slicer measurement. Islands are disconnected solids whose bbox sits above the bed, not per-layer slicer islands.
