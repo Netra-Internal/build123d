@@ -32,6 +32,15 @@ from build123d.clearance import (
     SweepStep,
     clearance,
 )
+from build123d.print import (
+    IslandRecord,
+    OverhangRecord,
+    PrintCheckResult,
+    PrintExportResult,
+    WallRecord,
+    export_for_print,
+    print_check,
+)
 from build123d.probe import ProbedBody, ProbedHole, ProbeResult, probe
 from build123d.render import SectionCut, ViewPreset, render
 from build123d.viewer import show
@@ -232,6 +241,13 @@ __all__ = [
     "ProbedBody",
     "ProbedHole",
     "ProbeResult",
+    "print_check",
+    "export_for_print",
+    "PrintCheckResult",
+    "PrintExportResult",
+    "OverhangRecord",
+    "WallRecord",
+    "IslandRecord",
     "render",
     "show",
     "ViewPreset",
