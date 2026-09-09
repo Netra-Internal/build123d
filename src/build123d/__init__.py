@@ -41,6 +41,7 @@ from build123d.print import (
     export_for_print,
     print_check,
 )
+from build123d.mate import MateResult, mate
 from build123d.probe import ProbedBody, ProbedHole, ProbeResult, probe
 from build123d.render import SectionCut, ViewPreset, render
 from build123d.viewer import show
@@ -237,6 +238,8 @@ __all__ = [
     "GapRecord",
     "SweepPath",
     "SweepStep",
+    "mate",
+    "MateResult",
     "probe",
     "ProbedBody",
     "ProbedHole",
