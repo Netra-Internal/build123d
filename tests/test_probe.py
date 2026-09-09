@@ -19,9 +19,11 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from build123d import (
+    Align,
     Box,
     Compound,
     Cylinder,
@@ -67,6 +69,27 @@ def _write_step(shape, directory: str, name: str = "part.step") -> str:
     path = os.path.join(directory, name)
     export_step(shape, path)
     return path
+
+
+def _unlabeled_min_z_assembly():
+    children = []
+    for i, min_z in enumerate((-2.5, 2.5, 7.5, 13.5, 19.5)):
+        box = Pos(i * 20, 0, min_z) * Box(
+            10, 10, 5, align=(Align.CENTER, Align.CENTER, Align.MIN)
+        )
+        box.label = ""
+        children.append(box)
+    return Compound(children=children)
+
+
+def _plate_close_diameters():
+    plate = (
+        Box(40, 20, 5)
+        - Pos(-10, 0, 0) * Cylinder(2.60 / 2, 10)
+        - Pos(10, 0, 0) * Cylinder(2.70 / 2, 10)
+    )
+    plate.label = "plate"
+    return plate
 
 
 class TestProbeLibrary(unittest.TestCase):
@@ -225,6 +248,76 @@ class TestProbeLibrary(unittest.TestCase):
             radius = _cylinder_radius(face, axis)
         self.assertAlmostEqual(radius, 2.0, places=5)
 
+    def test_keep_min_z_selects_unlabeled_bodies(self):
+        assembly = _unlabeled_min_z_assembly()
+        kept = probe(
+            assembly, keep=lambda body: body.bounding_box().min.Z < 13.5
+        )
+        mins = [body.bbox.min.Z for body in kept.bodies]
+        self.assertEqual(len(probe(assembly).bodies), 5)
+        self.assertEqual(len(kept.bodies), 3)
+        self.assertEqual(kept.names, ("", "", ""))
+        self.assertTrue(all(z < 13.5 for z in mins))
+        self.assertAlmostEqual(mins[0], -2.5, places=5)
+        self.assertAlmostEqual(mins[1], 2.5, places=5)
+        self.assertAlmostEqual(mins[2], 7.5, places=5)
+
+        stripped = probe(assembly, strip="")
+        self.assertEqual(stripped.bodies, ())
+
+    def test_drop_min_z_is_complement_of_keep(self):
+        assembly = _unlabeled_min_z_assembly()
+        dropped = probe(
+            assembly, drop=lambda body: body.bounding_box().min.Z < 13.5
+        )
+        mins = [body.bbox.min.Z for body in dropped.bodies]
+        self.assertEqual(len(dropped.bodies), 2)
+        self.assertAlmostEqual(mins[0], 13.5, places=5)
+        self.assertAlmostEqual(mins[1], 19.5, places=5)
+
+    def test_strip_and_keep_compose(self):
+        plate = _plate_with_hole()
+        scrap = Pos(40, 0, 20) * Box(5, 5, 5)
+        scrap.label = "scrap"
+        high = Pos(0, 40, 20) * Box(8, 8, 8)
+        high.label = "high"
+        assembly = Compound(children=[plate, scrap, high])
+        result = probe(
+            assembly,
+            strip=["scrap"],
+            keep=lambda body: body.bounding_box().min.Z < 13.5,
+        )
+        self.assertEqual(result.names, ("plate",))
+        self.assertEqual(len(result.bodies[0].holes), 1)
+
+    def test_hole_diameter_band_is_inclusive_and_optional(self):
+        plate = _plate_close_diameters()
+        all_holes = probe(plate).bodies[0].holes
+        diameters = sorted(hole.diameter for hole in all_holes)
+        self.assertEqual(len(diameters), 2)
+        self.assertAlmostEqual(diameters[0], 2.60, places=5)
+        self.assertAlmostEqual(diameters[1], 2.70, places=5)
+
+        banded = probe(plate, hole_diameter=(2.65, 2.75))
+        self.assertEqual(len(banded.bodies), 1)
+        self.assertEqual(len(banded.bodies[0].holes), 1)
+        self.assertAlmostEqual(banded.bodies[0].holes[0].diameter, 2.70, places=5)
+
+        none = probe(plate, hole_diameter=(3.0, 4.0))
+        self.assertEqual(len(none.bodies), 1)
+        self.assertEqual(none.bodies[0].holes, ())
+
+    def test_inverted_or_malformed_hole_diameter_raises(self):
+        plate = _plate_close_diameters()
+        one: Any = (2.7,)
+        scalar: Any = 2.7
+        with self.assertRaises(ValueError):
+            probe(plate, hole_diameter=(3, 1))
+        with self.assertRaises(ValueError):
+            probe(plate, hole_diameter=one)
+        with self.assertRaises(ValueError):
+            probe(plate, hole_diameter=scalar)
+
     def test_convexity_errors_are_skipped(self):
         plate = _plate_with_hole()
 
@@ -337,6 +430,40 @@ class TestProbeCli(unittest.TestCase):
                 code, payload, _ = self._run(["probe", path])
         self.assertEqual(code, EXIT_EMPTY)
         self.assertEqual(payload["error"], "empty")
+
+    def test_keep_min_z_lt_flag_filters_unlabeled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_step(_unlabeled_min_z_assembly(), tmp)
+            code, payload, _ = self._run(
+                ["probe", path, "--keep-min-z-lt", "13.5"]
+            )
+        self.assertEqual(code, EXIT_OK)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(len(payload["bodies"]), 3)
+        mins = [body["bbox"]["min"][2] for body in payload["bodies"]]
+        self.assertTrue(all(z < 13.5 for z in mins))
+
+    def test_keep_min_z_lt_all_dropped_exits_3(self):
+        high = Pos(0, 0, 20) * Box(8, 8, 8)
+        high.label = ""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_step(high, tmp)
+            code, payload, _ = self._run(
+                ["probe", path, "--keep-min-z-lt", "13.5"]
+            )
+        self.assertEqual(code, EXIT_EMPTY)
+        self.assertEqual(payload["error"], "empty_after_filter")
+
+    def test_hole_diameter_flag_keeps_in_band_holes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_step(_plate_close_diameters(), tmp)
+            code, payload, _ = self._run(
+                ["probe", path, "--hole-diameter", "2.65", "2.75"]
+            )
+        self.assertEqual(code, EXIT_OK)
+        holes = payload["bodies"][0]["holes"]
+        self.assertEqual(len(holes), 1)
+        self.assertAlmostEqual(holes[0]["diameter"], 2.70, places=5)
 
     def test_nested_assembly_uses_leaf_labels(self):
         plate = _plate_with_hole()

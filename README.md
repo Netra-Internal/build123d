@@ -205,7 +205,7 @@ export_stl(part, "bracket.stl")
 export_step(part_context.part, "bracket.step")
 ```
 
-Probe a STEP before designing around it (library-first; STEP names and extra bodies are untrusted). Match rule for ``strip`` is exact equality on ``Shape.label`` after ``import_step`` (spaces / ``.`` / ``()`` become ``_``):
+Probe a STEP before designing around it (library-first; STEP names and extra bodies are untrusted). Match rule for ``strip`` is exact equality on ``Shape.label`` after ``import_step`` (spaces / ``.`` / ``()`` become ``_``). When labels are empty, use geometric ``keep`` / ``drop`` (Tanay-style STEPs; example ``keep=lambda s: s.bounding_box().min.Z < 13.5``). ``hole_diameter=(dmin, dmax)`` is an inclusive band the caller chooses. The library does not hide holes by default:
 
 ```py
 from build123d import probe
@@ -221,6 +221,7 @@ Optional CLI wrapper (not a modeling tool):
 
 ```
 b123d probe path/to/file.step --strip scrap --json out.json
+b123d probe path/to/file.step --keep-min-z-lt 13.5 --hole-diameter 2.65 2.75
 ```
 
 Exit codes: `0` success, `2` missing file or usage error, `3` no bodies left (empty STEP or everything stripped), `1` other error. Every failure prints JSON with `"ok": false`.
