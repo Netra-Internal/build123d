@@ -175,7 +175,9 @@ class TestPlate3mfRoundTrip(unittest.TestCase):
                     if meta.get("key") == "object_id":
                         on_plate[meta.get("value")] = plater_id
         self.assertEqual(on_plate, {"1": "1", "2": "2"})
-        expected = {item["name"]: item["plate"] for item in result.to_dict()["assignments"]}
+        expected = {
+            item["name"]: item["plate"] for item in result.to_dict()["assignments"]
+        }
         self.assertEqual(inspected["part_to_plate"], expected)
         self.assertEqual(inspected["part_to_plate"], {"part[0]": 1, "part[1]": 2})
         self.assertEqual(inspected["object_to_plate"], {1: 1, 2: 2})
@@ -195,6 +197,7 @@ class TestPackPlatesCli(unittest.TestCase):
                 ["pack-plates", a, b, "--out", out, "--json", report]
             )
             on_disk = json.loads(Path(report).read_text(encoding="utf-8"))
+            self.assertTrue(os.path.isfile(out))
         self.assertEqual(code, EXIT_OK)
         self.assertTrue(payload["ok"])
         report_body = payload["pack_plates"]
@@ -205,7 +208,6 @@ class TestPackPlatesCli(unittest.TestCase):
         self.assertEqual(names, ["a", "b"])
         self.assertEqual(on_disk["ok"], True)
         self.assertEqual(on_disk["pack_plates"]["path"], out)
-        self.assertTrue(os.path.isfile(out))
 
     def test_missing_file_exits_2_with_json(self):
         with tempfile.TemporaryDirectory() as tmp:

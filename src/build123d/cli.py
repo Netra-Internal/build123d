@@ -504,9 +504,7 @@ def _cmd_pack_plates(
         return EXIT_NOT_FOUND
 
     try:
-        result = pack_plates(
-            stls, bed=bed, edge_margin=edge, part_gap=gap, out=out
-        )
+        result = pack_plates(stls, bed=bed, edge_margin=edge, part_gap=gap, out=out)
     except FileNotFoundError as exc:
         payload = {
             "ok": False,

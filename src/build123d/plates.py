@@ -245,9 +245,7 @@ def inspect_plate_3mf(path: PathLike | str | bytes) -> dict[str, Any]:
     if not isinstance(netra, dict) or "assignments" not in netra:
         raise ValueError("netra_plates.json missing assignments")
     settings = _parse_model_settings(settings_xml)
-    part_to_plate = {
-        item["name"]: item["plate"] for item in netra["assignments"]
-    }
+    part_to_plate = {item["name"]: item["plate"] for item in netra["assignments"]}
     return {
         "netra_plates": netra,
         "model_settings": settings,
@@ -468,17 +466,13 @@ def _model_settings_xml(
         by_plate.setdefault(assignment.plate, []).append(object_id)
     for plate in sorted(by_plate):
         plate_el = ET.SubElement(config, "plate")
-        ET.SubElement(
-            plate_el, "metadata", {"key": "plater_id", "value": str(plate)}
-        )
+        ET.SubElement(plate_el, "metadata", {"key": "plater_id", "value": str(plate)})
         for object_id in by_plate[plate]:
             instance = ET.SubElement(plate_el, "model_instance")
             ET.SubElement(
                 instance, "metadata", {"key": "object_id", "value": str(object_id)}
             )
-            ET.SubElement(
-                instance, "metadata", {"key": "instance_id", "value": "0"}
-            )
+            ET.SubElement(instance, "metadata", {"key": "instance_id", "value": "0"})
     return _xml_bytes(config)
 
 
