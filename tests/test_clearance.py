@@ -1,14 +1,4 @@
-"""
-build123d clearance tests
-
-name: test_clearance.py
-by:   Netra
-date: September 9th 2026
-
-desc: Min-gap matrix, slip assert, and swept insertion step intersects.
-"""
-
-# pylint: disable=missing-function-docstring
+# pylint: disable=missing-module-docstring,missing-class-docstring,missing-function-docstring
 
 from __future__ import annotations
 
@@ -83,7 +73,6 @@ def _walled_hole_and_pin():
 
 
 class TestClearanceGaps(unittest.TestCase):
-    """Pairwise real distance and caller slip."""
 
     def test_min_gap_is_real_distance(self):
         result = clearance(_two_boxes_gap_10(), slip=0.2)
@@ -161,7 +150,6 @@ class TestClearanceGaps(unittest.TestCase):
 
 
 class TestClearanceSweep(unittest.TestCase):
-    """Step intersects along an axis. Endpoints alone are not enough."""
 
     def test_mid_path_hit_fails_when_endpoints_are_clear(self):
         result = clearance(
@@ -262,7 +250,6 @@ class TestClearanceSweep(unittest.TestCase):
 
 
 class TestClearanceCli(unittest.TestCase):
-    """Thin wrapper: JSON report. Library remains the product."""
 
     def _run(self, argv):
         buffer = io.StringIO()

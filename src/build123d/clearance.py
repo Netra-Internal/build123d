@@ -5,14 +5,6 @@ name: clearance.py
 by:   Netra
 date: September 9th 2026
 
-desc:
-    Library-first min-gap and swept-insertion checks for Tanay
-    ``verify_*_b123d.py`` scripts. Pairwise gaps use real OCCT distance
-    (``distance_to_with_closest_points``). A caller ``slip`` is the
-    minimum allowed gap. Insertion is a discrete sweep along an axis
-    with a step intersect at each offset. A start-and-end interference
-    check is not enough.
-
 license:
 
     Copyright 2026 The build123d Contributors

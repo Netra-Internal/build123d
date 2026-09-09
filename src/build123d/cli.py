@@ -331,15 +331,6 @@ def _cmd_clearance(
         }
         _write_json(payload, json_path)
         return EXIT_NOT_FOUND
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        payload = {
-            "ok": False,
-            "error": "clearance_failed",
-            "message": str(exc),
-            "path": step,
-        }
-        _write_json(payload, json_path)
-        return EXIT_ERROR
 
     payload = {"ok": True, "path": str(path), "clearance": result.to_dict()}
     _write_json(payload, json_path)
