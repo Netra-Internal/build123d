@@ -295,6 +295,23 @@ Optional CLI wrapper:
 b123d print-check file.step
 ```
 
+Workspace fastener policy for printed parts lives in `fasteners`. Heat-set inserts are M3 only (hole Ø4.0, length 6.0). Self-tap pilots are 0.84 × major, rounded to 0.1 mm (M3 → ø2.5). Screw heads sit at least 3 mm below the mating face. Screw length is the smallest ISO preferred size that covers `sum(stack) + engagement`.
+
+```py
+from build123d import bom_screws, check_recess, insert_spec, self_tap_pilot
+
+assert self_tap_pilot(3.0) == 2.5
+spec = insert_spec("M3")
+assert spec.hole_diameter_mm == 4.0
+assert spec.length_mm == 6.0
+assert check_recess(3.0).ok
+bom = bom_screws((3.0, 2.0), engagement_mm=6.0, qty=4)
+assert bom.needed_mm == 11.0
+assert bom.length_mm == 12.0
+```
+
+`insert_spec("M4")` raises. A shallow recess returns `ok=False` and does not raise.
+
 ### Further reading
 
 More [Examples](https://build123d.readthedocs.io/en/latest/introductory_examples.html) and [Tutorials](https://build123d.readthedocs.io/en/latest/tutorials.html) are found in the documentation.
