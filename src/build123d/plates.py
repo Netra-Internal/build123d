@@ -137,6 +137,13 @@ class PlatePackResult:
         }
 
 
+@dataclass
+class _PlateCursor:
+    cursor_x: float
+    cursor_y: float
+    shelf_h: float
+
+
 @dataclass(frozen=True)
 class _LoadedPart:
     index: int
@@ -181,6 +188,8 @@ def pack_plates(
         bed_value[0] - 2.0 * edge_value,
         bed_value[1] - 2.0 * edge_value,
     )
+    if usable[0] <= 0 or usable[1] <= 0:
+        raise ValueError("edge_margin leaves no usable bed")
     loaded = [_load_one(part, index) for index, part in enumerate(items)]
     for part in loaded:
         if (
@@ -327,6 +336,38 @@ def _pose(shape: Shape, origin_xy: tuple[float, float]) -> Shape:
     )
 
 
+def _try_place(
+    cursor: _PlateCursor,
+    width: float,
+    depth: float,
+    *,
+    edge_margin: float,
+    part_gap: float,
+    right: float,
+    bottom: float,
+) -> tuple[float, float] | None:
+    if (
+        cursor.cursor_x + width <= right + TOLERANCE
+        and cursor.cursor_y + depth <= bottom + TOLERANCE
+    ):
+        origin = (cursor.cursor_x, cursor.cursor_y)
+        cursor.cursor_x = cursor.cursor_x + width + part_gap
+        cursor.shelf_h = max(cursor.shelf_h, depth)
+        return origin
+    if cursor.shelf_h <= 0:
+        return None
+    next_y = cursor.cursor_y + cursor.shelf_h + part_gap
+    if next_y + depth > bottom + TOLERANCE:
+        return None
+    if edge_margin + width > right + TOLERANCE:
+        return None
+    origin = (edge_margin, next_y)
+    cursor.cursor_x = edge_margin + width + part_gap
+    cursor.cursor_y = next_y
+    cursor.shelf_h = depth
+    return origin
+
+
 def _shelf_pack(
     parts: Sequence[_LoadedPart],
     *,
@@ -336,10 +377,7 @@ def _shelf_pack(
 ) -> dict[int, tuple[int, tuple[float, float]]]:
     right = bed[0] - edge_margin
     bottom = bed[1] - edge_margin
-    plate = 1
-    cursor_x = edge_margin
-    cursor_y = edge_margin
-    shelf_h = 0.0
+    plates: list[_PlateCursor] = []
     placed: dict[int, tuple[int, tuple[float, float]]] = {}
     ordered = sorted(
         parts,
@@ -351,23 +389,39 @@ def _shelf_pack(
     )
     for part in ordered:
         width, depth = part.footprint
-        if (
-            cursor_x + width > right + TOLERANCE
-            or cursor_y + depth > bottom + TOLERANCE
-        ):
-            next_y = cursor_y + shelf_h + part_gap
-            if next_y + depth > bottom + TOLERANCE:
-                plate += 1
-                cursor_x = edge_margin
-                cursor_y = edge_margin
-                shelf_h = 0.0
-            else:
-                cursor_x = edge_margin
-                cursor_y = next_y
-                shelf_h = 0.0
-        placed[part.index] = (plate, (cursor_x, cursor_y))
-        cursor_x = cursor_x + width + part_gap
-        shelf_h = max(shelf_h, depth)
+        origin = None
+        for plate_index, cursor in enumerate(plates):
+            origin = _try_place(
+                cursor,
+                width,
+                depth,
+                edge_margin=edge_margin,
+                part_gap=part_gap,
+                right=right,
+                bottom=bottom,
+            )
+            if origin is not None:
+                placed[part.index] = (plate_index + 1, origin)
+                break
+        if origin is not None:
+            continue
+        cursor = _PlateCursor(edge_margin, edge_margin, 0.0)
+        origin = _try_place(
+            cursor,
+            width,
+            depth,
+            edge_margin=edge_margin,
+            part_gap=part_gap,
+            right=right,
+            bottom=bottom,
+        )
+        if origin is None:
+            raise PartDoesNotFitError(
+                f"{part.name} footprint {part.footprint} exceeds usable "
+                f"{(right - edge_margin, bottom - edge_margin)}"
+            )
+        plates.append(cursor)
+        placed[part.index] = (len(plates), origin)
     return placed
 
 

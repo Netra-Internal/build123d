@@ -80,6 +80,19 @@ class TestPackPlates(unittest.TestCase):
         self.assertEqual(result.assignments[0].origin_xy, (2.0, 2.0))
         self.assertEqual(result.assignments[1].origin_xy, (2.0, 2.0))
 
+    def test_later_small_part_fills_earlier_plate(self):
+        result = pack_plates(
+            [Box(34, 20, 5), Box(34, 20, 5), Box(34, 14, 5)],
+            bed=(40.0, 40.0),
+            edge_margin=2.0,
+            part_gap=2.0,
+        )
+        self.assertTrue(result.ok)
+        self.assertEqual(result.usable, (36.0, 36.0))
+        self.assertEqual(result.plate_count, 2)
+        self.assertEqual([item.plate for item in result.assignments], [1, 2, 1])
+        self.assertEqual(result.assignments[2].origin_xy, (2.0, 24.0))
+
     def test_oversized_part_raises_and_does_not_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = os.path.join(tmp, "too_big.3mf")
@@ -106,6 +119,8 @@ class TestPackPlates(unittest.TestCase):
             pack_plates([Box(10, 10, 10)], bed=(180,))
         with self.assertRaises(ValueError):
             pack_plates([Box(10, 10, 10)], edge_margin=-1)
+        with self.assertRaises(ValueError):
+            pack_plates([Box(10, 10, 10)], edge_margin=100)
         with self.assertRaises(ValueError):
             pack_plates([Box(10, 10, 10)], part_gap=True)
         with self.assertRaises(FileNotFoundError):
