@@ -108,8 +108,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--keep-min-z-lt",
         type=float,
         default=None,
-        metavar="Z",
-        help="Keep bodies whose bounding-box min Z is below Z",
+        metavar="FLOAT",
+        help="Keep bodies whose bounding-box min.Z is below FLOAT",
     )
     probe_parser.add_argument(
         "--hole-diameter",

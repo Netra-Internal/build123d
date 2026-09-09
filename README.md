@@ -205,17 +205,12 @@ export_stl(part, "bracket.stl")
 export_step(part_context.part, "bracket.step")
 ```
 
-Probe a STEP before designing around it (library-first; STEP names and extra bodies are untrusted). Match rule for ``strip`` is exact equality on ``Shape.label`` after ``import_step`` (spaces / ``.`` / ``()`` become ``_``). When most labels are empty, drop or keep bodies by geometry instead (``keep=`` / ``drop=`` on each solid). Pass ``hole_diameter=(dmin, dmax)`` when you need one size and not a nearby one. The library does not hide holes unless you band them:
+Probe a STEP before designing around it (library-first; STEP names and extra bodies are untrusted). Match rule for ``strip`` is exact equality on ``Shape.label`` after ``import_step`` (spaces / ``.`` / ``()`` become ``_``). When labels are empty, use geometric ``keep`` / ``drop`` (Tanay-style STEPs; example ``keep=lambda s: s.bounding_box().min.Z < 13.5``). ``hole_diameter=(dmin, dmax)`` is an inclusive band the caller chooses. The library does not hide holes by default:
 
 ```py
 from build123d import probe
 
 result = probe("nema-17-bracket.step", strip=["scrap"])
-result = probe(
-    "pi.step",
-    keep=lambda body: body.bounding_box().min.Z < 13.5,
-    hole_diameter=(2.65, 2.75),
-)
 for body in result.bodies:
     print(body.name, body.bbox)
     for hole in body.holes:  # center, unit axis, diameter — hard-code after checking

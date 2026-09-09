@@ -19,9 +19,11 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from build123d import (
+    Align,
     Box,
     Compound,
     Cylinder,
@@ -70,25 +72,21 @@ def _write_step(shape, directory: str, name: str = "part.step") -> str:
 
 
 def _unlabeled_min_z_assembly():
-    """Five unlabeled boxes. Box(10,10,5) at Z has min.Z = Z - 2.5.
-
-    Centers 0, 5, 10, 16, 22 → min.Z -2.5, 2.5, 7.5, 13.5, 19.5.
-    keep min.Z < 13.5 leaves the first three.
-    """
     children = []
-    for i, z in enumerate((0.0, 5.0, 10.0, 16.0, 22.0)):
-        box = Pos(i * 20, 0, z) * Box(10, 10, 5)
+    for i, min_z in enumerate((-2.5, 2.5, 7.5, 13.5, 19.5)):
+        box = Pos(i * 20, 0, min_z) * Box(
+            10, 10, 5, align=(Align.CENTER, Align.CENTER, Align.MIN)
+        )
         box.label = ""
         children.append(box)
     return Compound(children=children)
 
 
 def _plate_close_diameters():
-    """Plate with Ø2.60 and Ø2.70 through-holes."""
     plate = (
         Box(40, 20, 5)
-        - Pos(-10, 0, 0) * Cylinder(1.30, 10)
-        - Pos(10, 0, 0) * Cylinder(1.35, 10)
+        - Pos(-10, 0, 0) * Cylinder(2.60 / 2, 10)
+        - Pos(10, 0, 0) * Cylinder(2.70 / 2, 10)
     )
     plate.label = "plate"
     return plate
@@ -256,6 +254,7 @@ class TestProbeLibrary(unittest.TestCase):
             assembly, keep=lambda body: body.bounding_box().min.Z < 13.5
         )
         mins = [body.bbox.min.Z for body in kept.bodies]
+        self.assertEqual(len(probe(assembly).bodies), 5)
         self.assertEqual(len(kept.bodies), 3)
         self.assertEqual(kept.names, ("", "", ""))
         self.assertTrue(all(z < 13.5 for z in mins))
@@ -310,12 +309,14 @@ class TestProbeLibrary(unittest.TestCase):
 
     def test_inverted_or_malformed_hole_diameter_raises(self):
         plate = _plate_close_diameters()
+        one: Any = (2.7,)
+        scalar: Any = 2.7
         with self.assertRaises(ValueError):
-            probe(plate, hole_diameter=(3.0, 1.0))
+            probe(plate, hole_diameter=(3, 1))
         with self.assertRaises(ValueError):
-            probe(plate, hole_diameter=(2.7,))  # type: ignore[arg-type]
+            probe(plate, hole_diameter=one)
         with self.assertRaises(ValueError):
-            probe(plate, hole_diameter=2.7)  # type: ignore[arg-type]
+            probe(plate, hole_diameter=scalar)
 
     def test_convexity_errors_are_skipped(self):
         plate = _plate_with_hole()
