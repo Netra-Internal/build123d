@@ -199,18 +199,13 @@ class PrintExportResult:
     size: tuple[float, float, float]
     bed: tuple[float, float, float]
 
-    @property
-    def ok(self) -> bool:
-        """True only on success (the function raises otherwise)."""
-        return True
-
     def to_dict(self) -> dict[str, Any]:
         """JSON-ready export record."""
         return {
             "path": self.path,
             "size": list(self.size),
             "bed": list(self.bed),
-            "ok": self.ok,
+            "ok": True,
         }
 
 
