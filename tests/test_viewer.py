@@ -8,7 +8,7 @@ date: September 9th 2026
 desc: Live HTML handoff. Embedded glTF, color, and section-cut.
 """
 
-# pylint: disable=missing-function-docstring
+# pylint: disable=missing-function-docstring,missing-class-docstring
 
 from __future__ import annotations
 
@@ -62,8 +62,6 @@ def _base_colors(gltf: dict) -> list[list[float]]:
 
 
 class TestViewerLibrary(unittest.TestCase):
-    """HTML file bytes, embedded glTF, appearance, and section-cut."""
-
     def test_box_writes_absolute_html(self):
         with tempfile.TemporaryDirectory() as tmp:
             path, text, _printed = _write_show(tmp, Box(10, 6, 4))

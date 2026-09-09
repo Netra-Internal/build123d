@@ -50,6 +50,8 @@ from build123d.render import (
 )
 from build123d.topology.shape_core import Shape
 
+# pylint: disable=missing-class-docstring
+
 __all__ = [
     "show",
 ]
@@ -59,12 +61,11 @@ _GLTF_UNSIGNED_INT = 5125
 _ARRAY_BUFFER = 34962
 _ELEMENT_ARRAY_BUFFER = 34963
 _GLASS_ALPHA = 0.999
+_CAD_UP = (0.0, 0.0, 1.0)
 
 
 @dataclass(frozen=True)
 class ViewerPart:
-    """One meshed body: little-endian float32 xyz, uint32 triangles, RGBA."""
-
     positions: bytes
     indices: bytes
     rgba: tuple[float, float, float, float]
@@ -72,8 +73,6 @@ class ViewerPart:
 
 @dataclass(frozen=True)
 class ViewerDocument:
-    """Meshed bodies ready to encode as one glTF document."""
-
     parts: tuple[ViewerPart, ...]
 
 
@@ -147,7 +146,6 @@ def _document_from_bodies(colored: list[tuple[Shape, Color]]) -> ViewerDocument:
 
 
 def _gltf_from_document(document: ViewerDocument) -> dict[str, Any]:
-    # Keep CAD Z-up. export_gltf rotates to Y-up and mutates location.
     blob = bytearray()
     buffer_views: list[dict[str, int]] = []
     accessors: list[dict[str, Any]] = []
@@ -259,7 +257,8 @@ def _material(rgba: tuple[float, float, float, float]) -> dict[str, Any]:
 def _html_from_gltf(gltf: dict[str, Any]) -> str:
     payload = json.dumps(gltf, separators=(",", ":"), ensure_ascii=True)
     payload = payload.replace("<", r"\u003c")
-    return _HTML.replace("__NETRA_GLTF__", payload)
+    up = ", ".join(str(axis) for axis in _CAD_UP)
+    return _HTML.replace("__NETRA_GLTF__", payload).replace("__CAD_UP__", up)
 
 
 _HTML = """<!DOCTYPE html>
@@ -295,7 +294,7 @@ const spec = document.getElementById("netra-gltf").textContent;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf4f4f4);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-camera.up.set(0, 0, 1);
+camera.up.set(__CAD_UP__);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio || 1);
 document.body.appendChild(renderer.domElement);

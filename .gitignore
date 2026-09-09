@@ -36,7 +36,7 @@ docs/_build/
 *.png
 *.svg
 
-# Test fixtures override the patterns above
+# Tracked samples override the patterns above
 !tests/assets/**
 !examples/netra_viewer/**
 
