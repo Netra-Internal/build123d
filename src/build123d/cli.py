@@ -7,8 +7,9 @@ date: September 9th 2026
 
 desc:
     Thin agent-facing CLI over the build123d library. The product is the
-    Python API; this module wraps ``probe``, ``clearance``, and
-    ``print_check``. Do not add CRUD / "create-box" style commands here.
+    Python API; this module wraps ``probe``, ``clearance``,
+    ``print_check``, and ``pack_plates``. Do not add CRUD / "create-box"
+    style commands here.
 
 license:
 
@@ -39,6 +40,7 @@ from typing import Any, NoReturn
 from build123d.clearance import clearance
 from build123d.geometry import Axis
 from build123d.importers import import_step
+from build123d.plates import PartDoesNotFitError, pack_plates
 from build123d.print import print_check
 from build123d.probe import probe
 
@@ -64,6 +66,8 @@ examples:
   b123d clearance housing.step --slip 0 --moving pin --axis 0 0 1 --travel 12
   b123d print-check housing.step
   b123d print-check housing.step --overhang 45 --min-wall 0.8 --json out.json
+  b123d pack-plates a.stl b.stl --out out.3mf
+  b123d pack-plates a.stl b.stl --out out.3mf --bed 180 180 --edge 2 --gap 8
 """
 
 
@@ -217,6 +221,56 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Also write the JSON report to PATH",
     )
 
+    pack_parser = subparsers.add_parser(
+        "pack-plates",
+        help="Pack STLs onto 1..N plates and write a multi-plate 3MF",
+        description=(
+            "Pack one or more STL parts onto A1 mini plates and write a "
+            "3MF with explicit plate assignments. Does not slice. "
+            "A part that cannot fit the usable bed exits 2."
+        ),
+    )
+    pack_parser.add_argument(
+        "stls",
+        nargs="+",
+        metavar="STL",
+        help="STL path(s) to pack",
+    )
+    pack_parser.add_argument(
+        "--out",
+        required=True,
+        metavar="PATH",
+        help="Destination multi-plate 3MF",
+    )
+    pack_parser.add_argument(
+        "--bed",
+        nargs=2,
+        type=float,
+        default=(180.0, 180.0),
+        metavar=("X", "Y"),
+        help="Physical bed size in mm (default 180 180, A1 mini)",
+    )
+    pack_parser.add_argument(
+        "--edge",
+        type=float,
+        default=2.0,
+        metavar="FLOAT",
+        help="Inset from each bed edge (default 2)",
+    )
+    pack_parser.add_argument(
+        "--gap",
+        type=float,
+        default=8.0,
+        metavar="FLOAT",
+        help="Gap between parts on a plate (default 8)",
+    )
+    pack_parser.add_argument(
+        "--json",
+        dest="json_path",
+        metavar="PATH",
+        help="Also write the JSON report to PATH",
+    )
+
     args = parser.parse_args(list(argv) if argv is not None else None)
     if args.command == "clearance":
         moving = args.moving
@@ -234,6 +288,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "print-check":
         return _cmd_print_check(args.step, args.overhang, args.min_wall, args.json_path)
+    if args.command == "pack-plates":
+        return _cmd_pack_plates(
+            args.stls,
+            args.out,
+            (float(args.bed[0]), float(args.bed[1])),
+            args.edge,
+            args.gap,
+            args.json_path,
+        )
     strip = [name for group in args.strip for name in group]
     hole_diameter = (
         (args.hole_diameter[0], args.hole_diameter[1])
@@ -417,6 +480,71 @@ def _cmd_print_check(
         return EXIT_NOT_FOUND
 
     payload = {"ok": True, "path": str(path), "print_check": result.to_dict()}
+    _write_json(payload, json_path)
+    return EXIT_OK
+
+
+def _cmd_pack_plates(
+    stls: list[str],
+    out: str,
+    bed: tuple[float, float],
+    edge: float,
+    gap: float,
+    json_path: str | None,
+) -> int:
+    missing = next((path for path in stls if not Path(path).is_file()), None)
+    if missing is not None:
+        payload = {
+            "ok": False,
+            "error": "file_not_found",
+            "message": f"STL file not found: {missing}",
+            "path": missing,
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+
+    try:
+        result = pack_plates(
+            stls, bed=bed, edge_margin=edge, part_gap=gap, out=out
+        )
+    except FileNotFoundError as exc:
+        payload = {
+            "ok": False,
+            "error": "file_not_found",
+            "message": str(exc),
+            "path": stls[0],
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+    except PartDoesNotFitError as exc:
+        payload = {
+            "ok": False,
+            "error": "does_not_fit",
+            "message": str(exc),
+            "path": out,
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+    except ValueError as exc:
+        payload = {
+            "ok": False,
+            "error": "usage",
+            "message": str(exc),
+            "path": out,
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        payload = {
+            "ok": False,
+            "error": "pack_plates_failed",
+            "message": str(exc),
+            "path": out,
+        }
+        _write_json(payload, json_path)
+        return EXIT_ERROR
+
+    payload = {"ok": True, "path": result.path, "pack_plates": result.to_dict()}
     _write_json(payload, json_path)
     return EXIT_OK
 
