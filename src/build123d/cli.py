@@ -7,8 +7,8 @@ date: September 9th 2026
 
 desc:
     Thin agent-facing CLI over the build123d library. The product is the
-    Python API; this module wraps ``probe`` and ``clearance``. Do not
-    add CRUD / "create-box" style commands here.
+    Python API; this module wraps ``probe``, ``clearance``, and
+    ``print_check``. Do not add CRUD / "create-box" style commands here.
 
 license:
 
@@ -38,6 +38,8 @@ from typing import Any, NoReturn
 
 from build123d.clearance import clearance
 from build123d.geometry import Axis
+from build123d.importers import import_step
+from build123d.print import print_check
 from build123d.probe import probe
 
 EXIT_OK = 0
@@ -60,6 +62,8 @@ examples:
   b123d probe board.step --keep-min-z-lt 13.5 --hole-diameter 2.65 2.75
   b123d clearance housing.step --slip 0.2
   b123d clearance housing.step --slip 0 --moving pin --axis 0 0 1 --travel 12
+  b123d print-check housing.step
+  b123d print-check housing.step --overhang 45 --min-wall 0.8 --json out.json
 """
 
 
@@ -182,6 +186,37 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Also write the JSON report to PATH",
     )
 
+    print_parser = subparsers.add_parser(
+        "print-check",
+        help="Overhang, wall, and island printability report",
+        description=(
+            "Load a STEP and report overhangs, inward-offset wall collapse, "
+            "and disconnected solids above the bed. "
+            "Exit 0 even when the nested report ok is false."
+        ),
+    )
+    print_parser.add_argument("step", help="Path to a STEP file")
+    print_parser.add_argument(
+        "--overhang",
+        type=float,
+        default=45.0,
+        metavar="DEG",
+        help="Flag faces steeper than this angle from vertical (default 45)",
+    )
+    print_parser.add_argument(
+        "--min-wall",
+        type=float,
+        default=0.8,
+        metavar="FLOAT",
+        help="Inward-offset wall threshold (default 0.8)",
+    )
+    print_parser.add_argument(
+        "--json",
+        dest="json_path",
+        metavar="PATH",
+        help="Also write the JSON report to PATH",
+    )
+
     args = parser.parse_args(list(argv) if argv is not None else None)
     if args.command == "clearance":
         moving = args.moving
@@ -197,6 +232,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.steps,
             args.json_path,
         )
+    if args.command == "print-check":
+        return _cmd_print_check(args.step, args.overhang, args.min_wall, args.json_path)
     strip = [name for group in args.strip for name in group]
     hole_diameter = (
         (args.hole_diameter[0], args.hole_diameter[1])
@@ -333,6 +370,53 @@ def _cmd_clearance(
         return EXIT_NOT_FOUND
 
     payload = {"ok": True, "path": str(path), "clearance": result.to_dict()}
+    _write_json(payload, json_path)
+    return EXIT_OK
+
+
+def _cmd_print_check(
+    step: str,
+    overhang_deg: float,
+    min_wall: float,
+    json_path: str | None,
+) -> int:
+    path = Path(step)
+    if not path.is_file():
+        payload = {
+            "ok": False,
+            "error": "file_not_found",
+            "message": f"STEP file not found: {step}",
+            "path": step,
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+
+    try:
+        result = print_check(
+            import_step(path),
+            overhang_deg=overhang_deg,
+            min_wall=min_wall,
+        )
+    except FileNotFoundError as exc:
+        payload = {
+            "ok": False,
+            "error": "file_not_found",
+            "message": str(exc),
+            "path": step,
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+    except ValueError as exc:
+        payload = {
+            "ok": False,
+            "error": "usage",
+            "message": str(exc),
+            "path": step,
+        }
+        _write_json(payload, json_path)
+        return EXIT_NOT_FOUND
+
+    payload = {"ok": True, "path": str(path), "print_check": result.to_dict()}
     _write_json(payload, json_path)
     return EXIT_OK
 

@@ -251,6 +251,33 @@ b123d clearance path/to/file.step --slip 0.2
 b123d clearance path/to/file.step --slip 0 --moving pin --axis 0 0 1 --travel 12
 ```
 
+Check printability before you send a part to a slicer. `print_check(...)` flags overhangs, thin walls, and disconnected solids.
+
+An overhang flags when the face angle from vertical is greater than `overhang_deg` (default 45°). A 45° face is OK. Wall thickness is an inward `offset` collapse, not a slicer measurement. Islands are disconnected solids whose bbox sits above the bed, not per-layer slicer islands.
+
+`export_for_print(..., face_down=..., bed=(180, 180, 180), out=...)` poses a face onto the bed and writes STL for an A1 mini.
+
+```py
+from build123d import Axis, Box, export_for_print, print_check
+
+part = Box(10, 20, 40)
+report = print_check(part)
+assert report.ok
+
+export_for_print(
+    part,
+    face_down=part.faces().sort_by(Axis.X)[0],
+    bed=(180, 180, 180),
+    out="part.stl",
+)
+```
+
+Optional CLI wrapper:
+
+```
+b123d print-check file.step
+```
+
 ### Further reading
 
 More [Examples](https://build123d.readthedocs.io/en/latest/introductory_examples.html) and [Tutorials](https://build123d.readthedocs.io/en/latest/tutorials.html) are found in the documentation.
