@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" data-engine="three.js">
+<head>
+<meta charset="utf-8">
+<title>build123d viewer</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#f4f4f4}
+canvas{display:block;width:100%;height:100%}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<script type="application/json" id="netra-gltf">{"asset":{"version":"2.0","generator":"build123d.show"},"scene":0,"scenes":[{"nodes":[0,1]}],"nodes":[{"mesh":0},{"mesh":1}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1,"material":0}]},{"primitives":[{"attributes":{"POSITION":2},"indices":3,"material":1}]}],"materials":[{"pbrMetallicRoughness":{"baseColorFactor":[1.0,0.6470588,0.0,1.0],"metallicFactor":0.0,"roughnessFactor":0.7},"doubleSided":true},{"pbrMetallicRoughness":{"baseColorFactor":[0.2745098,0.5098039,0.7058824,0.35],"metallicFactor":0.0,"roughnessFactor":0.7},"doubleSided":true,"alphaMode":"BLEND"}],"accessors":[{"componentType":5126,"count":24,"type":"VEC3","min":[-20.0,-10.0,-3.0],"max":[20.0,10.0,3.0],"bufferView":0},{"componentType":5125,"count":36,"type":"SCALAR","bufferView":1},{"componentType":5126,"count":106,"type":"VEC3","min":[-4.0,-3.9708354473114014,-12.0],"max":[4.0,3.9708354473114014,12.0],"bufferView":2},{"componentType":5125,"count":300,"type":"SCALAR","bufferView":3}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":288,"target":34962},{"buffer":0,"byteOffset":288,"byteLength":144,"target":34963},{"buffer":0,"byteOffset":432,"byteLength":1272,"target":34962},{"buffer":0,"byteOffset":1704,"byteLength":1200,"target":34963}],"buffers":[{"byteLength":2904,"uri":"data:application/octet-stream;base64,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BAAAAAMAAAAeAAAABQAAAAQAAAAgAAAABgAAACAAAAAhAAAABgAAAAUAAAAgAAAABwAAACEAAAAiAAAABwAAAAYAAAAhAAAACAAAACIAAAAjAAAACAAAACMAAAAkAAAACAAAAAcAAAAiAAAACQAAAAgAAAAkAAAACgAAACQAAAAlAAAACgAAAAkAAAAkAAAACwAAACUAAAAmAAAACwAAACYAAAAnAAAACwAAAAoAAAAlAAAADAAAAAsAAAAnAAAADAAAACcAAAAoAAAADQAAAAwAAAAoAAAADgAAAA0AAAAoAAAADgAAACgAAAApAAAADgAAACkAAAAqAAAADwAAAA4AAAAqAAAAEAAAAA8AAAAqAAAAEAAAACoAAAArAAAAEQAAABAAAAArAAAAEQAAACsAAAAsAAAAEQAAACwAAAAtAAAAEgAAABEAAAAtAAAAEwAAABIAAAAtAAAAEwAAAC0AAAAuAAAAEwAAAC4AAAAvAAAAFAAAABMAAAAvAAAAFAAAAC8AAAAwAAAAFQAAABQAAAAwAAAAFgAAABUAAAAwAAAAFgAAADAAAAAxAAAAFgAAADEAAAAyAAAAFwAAABYAAAAyAAAAGAAAADIAAAAzAAAAGAAAADMAAAA0AAAAGAAAABcAAAAyAAAAGQAAABgAAAA0AAAAGgAAADQAAAA1AAAAGgAAABkAAAA0AAAAQgAAAEMAAABEAAAATQAAAEUAAABGAAAATQAAAEYAAABHAAAATQAAAEcAAABIAAAATQAAAEgAAABJAAAATQAAAEkAAABKAAAATQAAAEoAAABLAAAATQAAAEsAAABMAAAAPwAAAEAAAABBAAAAPwAAAEEAAABCAAAAPgAAAD8AAABCAAAATwAAAEQAAABFAAAATwAAAE0AAABOAAAATwAAAEIAAABEAAAATwAAAEUAAABNAAAAPAAAAD0AAAA+AAAAOgAAADYAAAA3AAAAOgAAADcAAAA4AAAAOgAAADsAAAA8AAAAOgAAAE8AAAA2AAAAOgAAADwAAAA+AAAAOgAAAD4AAABCAAAAOgAAAEIAAABPAAAAOQAAADoAAAA4AAAAXAAAAF4AAABdAAAAZwAAAGAAAABfAAAAZwAAAGEAAABgAAAAZwAAAGIAAABhAAAAZwAAAGMAAABiAAAAZwAAAGQAAABjAAAAZwAAAGUAAABkAAAAZwAAAGYAAABlAAAAWQAAAFsAAABaAAAAWQAAAFwAAABbAAAAWAAAAFwAAABZAAAAaQAAAF8AAABeAAAAaQAAAGgAAABnAAAAaQAAAF4AAABcAAAAaQAAAGcAAABfAAAAVgAAAFgAAABXAAAAVAAAAFEAAABQAAAAVAAAAFIAAABRAAAAVAAAAFYAAABVAAAAVAAAAFAAAABpAAAAVAAAAFgAAABWAAAAVAAAAFwAAABYAAAAVAAAAGkAAABcAAAAUwAAAFIAAABUAAAA"}]}</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+window.addEventListener("unhandledrejection", (event) => {
+  document.body.dataset.viewerError = String(event.reason);
+});
+
+const spec = document.getElementById("netra-gltf").textContent;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf4f4f4);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+camera.up.set(0.0, 0.0, 1.0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio || 1);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 0.85);
+key.position.set(1, -1, 2);
+scene.add(key);
+
+function resize() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h, false);
+}
+window.addEventListener("resize", resize);
+resize();
+
+function fit(root) {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+  const radius = 0.5 * Math.max(size.x, size.y, size.z, 1e-6);
+  const dist = (radius / Math.tan((camera.fov * Math.PI) / 360)) * 1.35;
+  camera.position.set(center.x + dist, center.y - dist, center.z + dist);
+  camera.near = Math.max(dist / 200, 0.01);
+  camera.far = dist * 100;
+  camera.updateProjectionMatrix();
+  camera.lookAt(center);
+  controls.target.copy(center);
+  controls.update();
+}
+
+function glass(root) {
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const list = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const mat of list) {
+      if ((mat.opacity ?? 1) < 0.999) {
+        mat.transparent = true;
+        mat.depthWrite = false;
+      }
+    }
+  });
+}
+
+new GLTFLoader().parse(
+  spec,
+  "",
+  (gltf) => {
+    const root = gltf.scene;
+    glass(root);
+    scene.add(root);
+    fit(root);
+    document.body.dataset.viewerReady = "1";
+  },
+  (err) => {
+    document.body.dataset.viewerError = String(err);
+  }
+);
+
+function tick() {
+  requestAnimationFrame(tick);
+  controls.update();
+  renderer.render(scene, camera);
+}
+tick();
+</script>
+</body>
+</html>

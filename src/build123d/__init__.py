@@ -34,6 +34,7 @@ from build123d.clearance import (
 )
 from build123d.probe import ProbedBody, ProbedHole, ProbeResult, probe
 from build123d.render import SectionCut, ViewPreset, render
+from build123d.viewer import show
 from build123d.build_constants import (
     MC,
     MM,
@@ -232,6 +233,7 @@ __all__ = [
     "ProbedHole",
     "ProbeResult",
     "render",
+    "show",
     "ViewPreset",
     "SectionCut",
     # Other functions
