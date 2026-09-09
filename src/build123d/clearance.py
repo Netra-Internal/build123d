@@ -155,7 +155,8 @@ def clearance(
         travel: Inclusive path length from the given pose to the last
             step. Must be positive when a sweep is requested.
         steps: Inclusive sample count along ``[0, travel]``. Must be at
-            least 2 so a mid-path hit cannot hide behind the endpoints.
+            least 2 (start and end). A hit is visible only at a sampled
+            offset.
 
     Returns:
         ClearanceResult: Pairwise gaps always. ``sweep`` is set only
@@ -231,8 +232,12 @@ def _sweep_path(
     if not isinstance(steps, int) or isinstance(steps, bool) or steps < 2:
         raise ValueError("steps must be an int >= 2")
 
-    moving_name, moving_shape = _resolve_moving(bodies, moving)
-    others = [(name, shape) for name, shape in bodies if name != moving_name]
+    moving_index, moving_name, moving_shape = _resolve_moving(bodies, moving)
+    others = [
+        (name, shape)
+        for index, (name, shape) in enumerate(bodies)
+        if index != moving_index
+    ]
     direction = Vector(axis.direction).normalized()
     span = float(travel)
     samples = [i * span / (steps - 1) for i in range(steps)]
@@ -249,16 +254,17 @@ def _sweep_path(
 
 def _resolve_moving(
     bodies: tuple[tuple[str, Shape], ...], moving: str | int
-) -> tuple[str, Shape]:
+) -> tuple[int, str, Shape]:
     if isinstance(moving, bool) or not isinstance(moving, (str, int)):
         raise ValueError("moving must be a body name or inventory index")
     if isinstance(moving, int):
         if moving < 0 or moving >= len(bodies):
             raise ValueError(f"moving index {moving} is out of range")
-        return bodies[moving]
-    for name, shape in bodies:
+        name, shape = bodies[moving]
+        return moving, name, shape
+    for index, (name, shape) in enumerate(bodies):
         if name == moving:
-            return name, shape
+            return index, name, shape
     raise ValueError(f"moving body not found: {moving}")
 
 

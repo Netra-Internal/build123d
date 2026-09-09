@@ -185,6 +185,24 @@ class TestClearanceSweep(unittest.TestCase):
         )
         self.assertTrue(result.ok)
 
+    def test_duplicate_labels_still_detect_mid_hit(self):
+        first = Box(10, 10, 10)
+        first.label = "box"
+        second = Pos(20, 0, 0) * Box(10, 10, 10)
+        second.label = "box"
+        result = clearance(
+            Compound(children=[first, second]),
+            slip=0.0,
+            moving="box",
+            axis=Axis.X,
+            travel=20,
+            steps=5,
+        )
+        self.assertFalse(result.ok)
+        self.assertTrue(
+            any(step.colliding == ("box",) for step in result.sweep.steps)
+        )
+
     def test_moving_index_selects_body(self):
         result = clearance(
             _wall_and_pin(),
