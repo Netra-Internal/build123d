@@ -155,7 +155,7 @@ def _feature_location(
     if isinstance(feature, Plane):
         return Location(feature)
     if isinstance(feature, Face):
-        return Location(Plane(origin=feature.center(), z_dir=feature.normal_at()))
+        return _face_location(feature)
     if isinstance(feature, ProbedHole):
         return Axis(feature.center, feature.axis).location
     if isinstance(feature, int) and not isinstance(feature, bool):
@@ -164,6 +164,10 @@ def _feature_location(
         f"{role}_feature must be int, ProbedHole, Face, Plane, or Location, "
         f"not {type(feature).__name__}"
     )
+
+
+def _face_location(face: Face) -> Location:
+    return Location(Plane(origin=face.center(), z_dir=face.normal_at()))
 
 
 def _hole_location(
