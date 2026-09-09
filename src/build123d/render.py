@@ -114,10 +114,10 @@ def render(
             Unlisted shapes use ``Shape.color`` or a default gold.
             Alpha < 1 is translucent.
         section: Plane or ``SectionCut`` that bisects each body and keeps
-            one side.
+            one side. The camera stays on the uncut AABB.
         background: Clear color. Alpha is ignored; the still is RGB.
-        look_at: Camera target. Defaults to the combined bounding-box
-            center.
+        look_at: Camera target. Defaults to the uncut bounding-box
+            center. A section-cut keeps that frame.
 
     Returns:
         Path to the written file.
@@ -134,15 +134,20 @@ def render(
     if not items:
         raise ValueError("nothing to render")
 
-    cut = _as_section(section)
-    colored = _colored_bodies(items, appearances, cut)
+    uncut = _colored_bodies(items, appearances)
+    if not uncut:
+        raise ValueError("nothing to render")
+
+    look_from, look_up = _view_basis(view)
+    low, high = _world_aabb(shape for shape, _color in uncut)
+    target = Vector(look_at) if look_at is not None else (low + high) * 0.5
+    colored = _apply_cut(uncut, _as_section(section))
     if not colored:
         raise ValueError("nothing to render after section-cut")
 
-    look_from, look_up = _view_basis(view)
-    target = Vector(look_at) if look_at is not None else _center(colored)
+    frame = _ortho_frame(low, high, look_from, look_up, target, (width, height))
     bg = tuple(Color(background))[:3]
-    pixels = _rasterize(colored, (width, height), look_from, look_up, target, bg)
+    pixels = _rasterize(colored, (width, height), frame, bg)
 
     path = Path(fsdecode(out))
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -188,19 +193,17 @@ def _preset_from_name(name: str) -> ViewPreset:
 def _colored_bodies(
     items: list[Shape],
     appearances: Mapping[Shape, ColorLike] | None,
-    cut: SectionCut | None,
 ) -> list[tuple[Shape, Color]]:
     by_id = {id(shape): Color(color) for shape, color in (appearances or {}).items()}
     bodies: list[tuple[Shape, Color]] = []
     for item in items:
-        bodies.extend(_collect_bodies(item, by_id, cut, None))
+        bodies.extend(_collect_bodies(item, by_id, None))
     return bodies
 
 
 def _collect_bodies(
     item: Shape,
     by_id: dict[int, Color],
-    cut: SectionCut | None,
     inherited: Color | None,
 ) -> list[tuple[Shape, Color]]:
     color = _color_of(item, by_id, inherited)
@@ -208,15 +211,25 @@ def _collect_bodies(
     if children:
         collected: list[tuple[Shape, Color]] = []
         for child in children:
-            collected.extend(_collect_bodies(child, by_id, cut, color))
+            collected.extend(_collect_bodies(child, by_id, color))
         if collected:
             return collected
     bodies: list[tuple[Shape, Color]] = []
     for body in _explode(item):
         piece_color = _color_of(body, by_id, color)
-        pieces = _cut_body(body, cut)
-        bodies.extend((piece, piece_color) for piece in pieces)
+        bodies.append((body, piece_color))
     return bodies
+
+
+def _apply_cut(
+    colored: list[tuple[Shape, Color]], cut: SectionCut | None
+) -> list[tuple[Shape, Color]]:
+    if cut is None:
+        return colored
+    out: list[tuple[Shape, Color]] = []
+    for shape, color in colored:
+        out.extend((piece, color) for piece in _cut_body(shape, cut))
+    return out
 
 
 def _explode(shape: Shape) -> list[Shape]:
@@ -249,10 +262,10 @@ def _cut_body(body: Shape, cut: SectionCut | None) -> list[Shape]:
     return [result]
 
 
-def _center(colored: list[tuple[Shape, Color]]) -> Vector:
+def _world_aabb(shapes: Iterable[Shape]) -> tuple[Vector, Vector]:
     mins = []
     maxs = []
-    for shape, _color in colored:
+    for shape in shapes:
         box = shape.bounding_box()
         mins.append(box.min)
         maxs.append(box.max)
@@ -266,7 +279,46 @@ def _center(colored: list[tuple[Shape, Color]]) -> Vector:
         max(p.Y for p in maxs),
         max(p.Z for p in maxs),
     )
-    return (low + high) * 0.5
+    return low, high
+
+
+@dataclass(frozen=True)
+class _OrthoFrame:
+    origin: np.ndarray
+    mid: np.ndarray
+    scale: float
+    right: np.ndarray
+    up: np.ndarray
+    forward: np.ndarray
+
+
+def _ortho_frame(
+    low: Vector,
+    high: Vector,
+    look_from: Vector,
+    look_up: Vector,
+    target: Vector,
+    size: tuple[int, int],
+) -> _OrthoFrame:
+    width, height = size
+    right, up, forward = _camera_basis(look_from, look_up)
+    origin = _vec3(target)
+    corners = np.array(
+        [
+            (x, y, z)
+            for x in (low.X, high.X)
+            for y in (low.Y, high.Y)
+            for z in (low.Z, high.Z)
+        ],
+        dtype=np.float64,
+    )
+    cam_xy = _to_camera(corners, origin, right, up, forward)[:, :2]
+    low_xy = cam_xy.min(axis=0)
+    high_xy = cam_xy.max(axis=0)
+    span = np.maximum(high_xy - low_xy, 1e-9)
+    scale = (1.0 - 2.0 * _FRAME_PAD) * min(width, height) / float(span.max())
+    mid = (low_xy + high_xy) * 0.5
+    return _OrthoFrame(origin, mid, scale, right, up, forward)
 
 
 def _mesh(shape: Shape) -> tuple[np.ndarray, np.ndarray]:
@@ -312,14 +364,14 @@ def _to_camera(
 def _rasterize(
     colored: list[tuple[Shape, Color]],
     size: tuple[int, int],
-    look_from: Vector,
-    look_up: Vector,
-    target: Vector,
+    frame: _OrthoFrame,
     background: tuple[float, float, float],
 ) -> np.ndarray:
     width, height = size
-    right, up, forward = _camera_basis(look_from, look_up)
-    origin = _vec3(target)
+    origin = frame.origin
+    mid = frame.mid
+    scale = frame.scale
+    right, up, forward = frame.right, frame.up, frame.forward
 
     meshes: list[tuple[np.ndarray, np.ndarray, tuple[float, float, float, float]]] = []
     for shape, color in colored:
@@ -329,15 +381,6 @@ def _rasterize(
         meshes.append((verts, tris, tuple(color)))
     if not meshes:
         raise ValueError("nothing to render: no triangulated faces")
-
-    cam_xy = np.vstack(
-        [_to_camera(v, origin, right, up, forward)[:, :2] for v, _t, _c in meshes]
-    )
-    low = cam_xy.min(axis=0)
-    high = cam_xy.max(axis=0)
-    span = np.maximum(high - low, 1e-9)
-    scale = (1.0 - 2.0 * _FRAME_PAD) * min(width, height) / float(span.max())
-    mid = (low + high) * 0.5
 
     def to_screen(verts: np.ndarray) -> np.ndarray:
         cam = _to_camera(verts, origin, right, up, forward)
