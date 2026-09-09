@@ -287,6 +287,10 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
+window.addEventListener("unhandledrejection", (event) => {
+  document.body.dataset.viewerError = String(event.reason);
+});
+
 const spec = document.getElementById("netra-gltf").textContent;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf4f4f4);
@@ -344,12 +348,20 @@ function glass(root) {
   });
 }
 
-new GLTFLoader().parse(spec, "", (gltf) => {
-  const root = gltf.scene;
-  glass(root);
-  scene.add(root);
-  fit(root);
-});
+new GLTFLoader().parse(
+  spec,
+  "",
+  (gltf) => {
+    const root = gltf.scene;
+    glass(root);
+    scene.add(root);
+    fit(root);
+    document.body.dataset.viewerReady = "1";
+  },
+  (err) => {
+    document.body.dataset.viewerError = String(err);
+  }
+);
 
 function tick() {
   requestAnimationFrame(tick);
