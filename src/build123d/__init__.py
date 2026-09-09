@@ -25,6 +25,13 @@ from build123d.persistence import modify_copyreg
 from build123d.exporters3d import *
 from build123d.text import available_fonts, FontManager
 from build123d.brep_from_stl import detect_primitives
+from build123d.clearance import (
+    ClearanceResult,
+    GapRecord,
+    SweepPath,
+    SweepStep,
+    clearance,
+)
 from build123d.probe import ProbedBody, ProbedHole, ProbeResult, probe
 from build123d.render import SectionCut, ViewPreset, render
 from build123d.build_constants import (
@@ -215,6 +222,11 @@ __all__ = [
     "import_stl",
     "import_svg",
     "import_svg_as_buildline_code",
+    "clearance",
+    "ClearanceResult",
+    "GapRecord",
+    "SweepPath",
+    "SweepStep",
     "probe",
     "ProbedBody",
     "ProbedHole",
