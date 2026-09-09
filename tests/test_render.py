@@ -40,12 +40,15 @@ def _png_path(directory: str, name: str = "out.png") -> str:
     return os.path.join(directory, name)
 
 
-def _mean_nonwhite(path: str) -> np.ndarray:
-    pixels = np.asarray(Image.open(path).convert("RGB"))
+def _mean_nonwhite_arr(pixels: np.ndarray) -> np.ndarray:
     mask = pixels.sum(axis=2) < 750
     if not mask.any():
-        raise AssertionError(f"{path} has no non-white pixels")
+        raise AssertionError("image has no non-white pixels")
     return pixels[mask].mean(axis=0)
+
+
+def _mean_nonwhite(path: str) -> np.ndarray:
+    return _mean_nonwhite_arr(np.asarray(Image.open(path).convert("RGB")))
 
 
 def _file_digest(path: str) -> str:
@@ -163,6 +166,29 @@ class TestRenderLibrary(unittest.TestCase):
             jpg = render([a, b], out=_png_path(tmp, "assy.jpg"), size=(96, 72))
             self.assertTrue(Path(png).read_bytes().startswith(b"\x89PNG"))
             self.assertGreater(Path(jpg).stat().st_size, 32)
+
+    def test_compound_children_keep_per_body_color(self):
+        left = Box(6, 6, 2)
+        left.color = Color(0.95, 0.05, 0.05, 1.0)
+        right = Pos(10, 0, 0) * Box(6, 6, 2)
+        right.color = Color(0.05, 0.05, 0.95, 1.0)
+        assy = Compound(children=[left, right])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = render(
+                assy,
+                view="top",
+                out=_png_path(tmp),
+                size=(160, 80),
+            )
+            pixels = np.asarray(Image.open(path).convert("RGB"))
+
+        left_px = pixels[:, :80]
+        right_px = pixels[:, 80:]
+        left_rgb = _mean_nonwhite_arr(left_px)
+        right_rgb = _mean_nonwhite_arr(right_px)
+        self.assertGreater(left_rgb[0], left_rgb[2] + 40)
+        self.assertGreater(right_rgb[2], right_rgb[0] + 40)
 
     def test_unknown_view_raises(self):
         with tempfile.TemporaryDirectory() as tmp:

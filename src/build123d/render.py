@@ -192,10 +192,29 @@ def _colored_bodies(
     by_id = {id(shape): Color(color) for shape, color in (appearances or {}).items()}
     bodies: list[tuple[Shape, Color]] = []
     for item in items:
-        for body in _explode(item):
-            color = _color_for(body, item, by_id)
-            pieces = _cut_body(body, cut)
-            bodies.extend((piece, color) for piece in pieces)
+        bodies.extend(_collect_bodies(item, by_id, cut, None))
+    return bodies
+
+
+def _collect_bodies(
+    item: Shape,
+    by_id: dict[int, Color],
+    cut: SectionCut | None,
+    inherited: Color | None,
+) -> list[tuple[Shape, Color]]:
+    color = _color_of(item, by_id, inherited)
+    children = getattr(item, "children", None) or []
+    if children:
+        collected: list[tuple[Shape, Color]] = []
+        for child in children:
+            collected.extend(_collect_bodies(child, by_id, cut, color))
+        if collected:
+            return collected
+    bodies: list[tuple[Shape, Color]] = []
+    for body in _explode(item):
+        piece_color = _color_of(body, by_id, color)
+        pieces = _cut_body(body, cut)
+        bodies.extend((piece, piece_color) for piece in pieces)
     return bodies
 
 
@@ -208,14 +227,13 @@ def _explode(shape: Shape) -> list[Shape]:
     return []
 
 
-def _color_for(body: Shape, parent: Shape, by_id: dict[int, Color]) -> Color:
-    for key in (id(body), id(parent)):
-        if key in by_id:
-            return by_id[key]
-    if body.color is not None:
-        return body.color
-    if parent.color is not None:
-        return parent.color
+def _color_of(shape: Shape, by_id: dict[int, Color], inherited: Color | None) -> Color:
+    if id(shape) in by_id:
+        return by_id[id(shape)]
+    if shape.color is not None:
+        return shape.color
+    if inherited is not None:
+        return inherited
     return Color(*_DEFAULT_RGBA)
 
 
