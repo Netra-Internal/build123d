@@ -50,7 +50,6 @@ SELF_TAP_RATIO = 0.84
 MIN_RECESS_MM = 3.0
 ALLOWED_INSERT_SIZE = "M3"
 
-# ISO 4762 preferred lengths. BOM snaps needed length up to this table.
 ISO_PREFERRED_LENGTHS_MM: tuple[float, ...] = (
     4,
     5,
@@ -72,7 +71,7 @@ ISO_PREFERRED_LENGTHS_MM: tuple[float, ...] = (
 
 @dataclass(frozen=True)
 class InsertSpec:
-    """On-hand heat-set insert. Workspace stock is M3 Ø4.0×6.0."""
+    """Insert size, pocket diameter, length, and thread."""
 
     size: str
     hole_diameter_mm: float
@@ -91,7 +90,7 @@ class InsertSpec:
 
 @dataclass(frozen=True)
 class RecessCheck:
-    """Head-recess depth against the 3 mm mating-face rule."""
+    """Head-recess depth against the workspace minimum."""
 
     depth_mm: float
     minimum_mm: float
@@ -108,7 +107,7 @@ class RecessCheck:
 
 @dataclass(frozen=True)
 class BomRow:
-    """One screw line. Length is derived, not guessed."""
+    """One screw line."""
 
     qty: int
     size: str
