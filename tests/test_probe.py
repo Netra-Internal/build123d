@@ -144,6 +144,61 @@ class TestProbeLibrary(unittest.TestCase):
         self.assertAlmostEqual(diameters[0], 4.0, places=5)
         self.assertAlmostEqual(diameters[1], 6.0, places=5)
 
+    def test_same_diameter_offset_holes_are_distinct(self):
+        plate = (
+            Box(40, 20, 5)
+            - Pos(-10, 0, 0) * Cylinder(2, 10)
+            - Pos(10, 0, 0) * Cylinder(2, 10)
+        )
+        holes = probe(plate).bodies[0].holes
+        self.assertEqual(len(holes), 2)
+        centers = sorted((hole.center.X, hole.center.Y, hole.center.Z) for hole in holes)
+        self.assertAlmostEqual(centers[0][0], -10.0, places=5)
+        self.assertAlmostEqual(centers[1][0], 10.0, places=5)
+        self.assertAlmostEqual(holes[0].diameter, 4.0, places=5)
+        self.assertAlmostEqual(holes[1].diameter, 4.0, places=5)
+
+    def test_interrupted_coaxial_holes_are_distinct(self):
+        part = (
+            Box(20, 20, 40)
+            - Pos(0, 0, 12) * Cylinder(2, 16)
+            - Pos(0, 0, -12) * Cylinder(2, 16)
+        )
+        holes = probe(part).bodies[0].holes
+        self.assertEqual(len(holes), 2)
+        zs = sorted(hole.center.Z for hole in holes)
+        self.assertAlmostEqual(zs[0], -12.0, places=5)
+        self.assertAlmostEqual(zs[1], 12.0, places=5)
+        self.assertAlmostEqual(holes[0].diameter, 4.0, places=5)
+        self.assertAlmostEqual(holes[1].diameter, 4.0, places=5)
+
+    def test_inner_fillets_are_not_holes(self):
+        pocketed = Box(30, 30, 10) - Pos(0, 0, 3) * Box(12, 12, 8)
+        inner = [
+            edge
+            for edge in pocketed.edges()
+            if edge.bounding_box().size.Z > 1
+            and edge.center().X**2 + edge.center().Y**2 < 80
+        ]
+        filleted = pocketed.fillet(1.5, inner)
+        result = probe(filleted)
+        self.assertEqual(len(result.bodies), 1)
+        self.assertEqual(result.bodies[0].holes, ())
+
+    def test_strip_matches_sanitized_step_label(self):
+        scrap = Box(10, 10, 10)
+        scrap.label = "scrap part (v1.0)"
+        keep = Pos(20, 0, 0) * Box(8, 8, 8)
+        keep.label = "keep"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_step(Compound(children=[scrap, keep]), tmp)
+            raw = probe(path)
+            stripped = probe(path, strip=["scrap_part__v1_0_"])
+            ignored = probe(path, strip=["scrap part (v1.0)"])
+        self.assertEqual(set(raw.names), {"scrap_part__v1_0_", "keep"})
+        self.assertEqual(stripped.names, ("keep",))
+        self.assertEqual(set(ignored.names), {"scrap_part__v1_0_", "keep"})
+
     def test_to_dict_is_json_serializable(self):
         result = probe(_plate_with_hole())
         payload = result.to_dict()
@@ -218,6 +273,16 @@ class TestProbeCli(unittest.TestCase):
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"], "empty_after_strip")
         self.assertEqual(payload["strip"], ["plate", "scrap"])
+
+    def test_repeated_strip_flags_are_combined(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_step(_multi_body_assembly(), tmp)
+            code, payload, _ = self._run(
+                ["probe", path, "--strip", "plate", "--strip", "scrap"]
+            )
+        self.assertEqual(code, EXIT_EMPTY)
+        self.assertEqual(payload["error"], "empty_after_strip")
+        self.assertEqual(set(payload["strip"]), {"plate", "scrap"})
 
     def test_success_writes_json_and_exits_0(self):
         with tempfile.TemporaryDirectory() as tmp:

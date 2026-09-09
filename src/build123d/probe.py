@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from math import pi
 from os import PathLike
 from typing import Any
 
@@ -48,10 +49,12 @@ __all__ = [
     "probe",
 ]
 
-# Group split cylindrical faces that belong to one hole. Loose enough for
-# typical STEP rounding, tight enough that distinct holes stay distinct.
+# Split faces of one hole share an axis, a radius, and an axial extent.
+# Grouped span below π is a cylindrical fillet, not a hole.
 _AXIS_ANGLE_TOL_DEG = 0.1
 _AXIS_LINEAR_TOL = 1e-4
+_AXIS_GAP_TOL = 1e-3
+_MIN_HOLE_SPAN_RAD = pi
 
 
 @dataclass(frozen=True)
@@ -202,13 +205,20 @@ def _detect_holes(shape: Shape) -> tuple[ProbedHole, ...]:
         if radius is None or radius <= TOLERANCE:
             continue
         for group_axis, group_radius, group_faces in groups:
-            if _same_hole(group_axis, group_radius, axis, radius):
-                group_faces.append(face)
-                break
+            if not _same_hole(group_axis, group_radius, axis, radius):
+                continue
+            if not _axially_adjacent(group_faces, [face], group_axis):
+                continue
+            group_faces.append(face)
+            break
         else:
             groups.append((axis, radius, [face]))
 
-    holes = [_hole_from_group(axis, radius, faces) for axis, radius, faces in groups]
+    holes = [
+        _hole_from_group(axis, radius, faces)
+        for axis, radius, faces in groups
+        if _angular_span(faces) + 1e-6 >= _MIN_HOLE_SPAN_RAD
+    ]
     holes.sort(
         key=lambda hole: (hole.diameter, hole.center.X, hole.center.Y, hole.center.Z)
     )
@@ -224,6 +234,49 @@ def _same_hole(
     return first_axis.is_parallel(
         second_axis, angular_tolerance=_AXIS_ANGLE_TOL_DEG
     ) and not first_axis.is_skew(second_axis, tolerance=_AXIS_LINEAR_TOL)
+
+
+def _axial_params(faces: Iterable[Face], axis: Axis) -> list[float]:
+    direction = axis.direction
+    params: list[float] = []
+    for face in faces:
+        vertices = list(face.vertices())
+        if vertices:
+            params.extend(
+                (Vector(vertex.X, vertex.Y, vertex.Z) - axis.position).dot(direction)
+                for vertex in vertices
+            )
+        else:
+            params.append((face.center() - axis.position).dot(direction))
+    return params
+
+
+def _axial_range(faces: Iterable[Face], axis: Axis) -> tuple[float, float] | None:
+    params = _axial_params(faces, axis)
+    if not params:
+        return None
+    return min(params), max(params)
+
+
+def _axially_adjacent(
+    first_faces: Iterable[Face],
+    second_faces: Iterable[Face],
+    axis: Axis,
+) -> bool:
+    first_range = _axial_range(first_faces, axis)
+    second_range = _axial_range(second_faces, axis)
+    if first_range is None or second_range is None:
+        return True
+    gap = max(first_range[0], second_range[0]) - min(first_range[1], second_range[1])
+    return gap <= _AXIS_GAP_TOL
+
+
+def _angular_span(faces: Iterable[Face]) -> float:
+    total = 0.0
+    for face in faces:
+        u_min, u_max, _v_min, _v_max = face._uv_bounds()
+        total += abs(u_max - u_min)
+    return total
 
 
 def _cylinder_radius(face: Face, axis: Axis) -> float | None:
@@ -243,20 +296,10 @@ def _canonical_direction(direction: Vector) -> Vector:
 
 
 def _axial_center(faces: Iterable[Face], axis: Axis) -> Vector:
-    direction = axis.direction
-    params: list[float] = []
-    for face in faces:
-        vertices = list(face.vertices())
-        if vertices:
-            params.extend(
-                (Vector(vertex.X, vertex.Y, vertex.Z) - axis.position).dot(direction)
-                for vertex in vertices
-            )
-        else:
-            params.append((face.center() - axis.position).dot(direction))
+    params = _axial_params(faces, axis)
     if not params:
         return axis.position
-    return axis.position + direction * (0.5 * (min(params) + max(params)))
+    return axis.position + axis.direction * (0.5 * (min(params) + max(params)))
 
 
 def _hole_from_group(axis: Axis, radius: float, faces: list[Face]) -> ProbedHole:

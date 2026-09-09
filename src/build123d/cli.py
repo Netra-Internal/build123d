@@ -68,7 +68,10 @@ class _JsonArgumentParser(argparse.ArgumentParser):
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the ``b123d`` CLI. Returns an exit code; does not raise SystemExit."""
+    """Run the ``b123d`` CLI. Returns an exit code.
+
+    Usage errors still raise ``SystemExit`` with code 2 (argparse).
+    """
     parser = _JsonArgumentParser(
         prog="b123d",
         description=(
@@ -93,6 +96,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     probe_parser.add_argument("step", help="Path to a STEP file")
     probe_parser.add_argument(
         "--strip",
+        action="append",
         nargs="*",
         default=[],
         metavar="NAME",
@@ -106,7 +110,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     args = parser.parse_args(list(argv) if argv is not None else None)
-    return _cmd_probe(args.step, args.strip, args.json_path)
+    strip = [name for group in args.strip for name in group]
+    return _cmd_probe(args.step, strip, args.json_path)
 
 
 def console_main() -> None:
