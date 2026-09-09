@@ -110,10 +110,15 @@ def mate(
     fixed_location = _feature_location(fixed, fixed_host, fixed_feature, "fixed")
     moving_location = _feature_location(moving, moving_host, moving_feature, "moving")
     if flip:
-        moving_location = Location(-Plane(moving_location))
+        plane = Plane(moving_location)
+        moving_location = Location(Plane(origin=plane.origin, z_dir=-plane.z_dir))
 
-    fixed_joint = RigidJoint(_joint_label(), fixed_host, fixed_location)
-    moving_joint = RigidJoint(_joint_label(), moving_host, moving_location)
+    fixed_joint = RigidJoint(
+        _joint_label(fixed_host, moving_host), fixed_host, fixed_location
+    )
+    moving_joint = RigidJoint(
+        _joint_label(fixed_host, moving_host), moving_host, moving_location
+    )
     fixed_joint.connect_to(moving_joint)
     return MateResult(
         location=fixed_joint.location,
@@ -124,8 +129,12 @@ def mate(
     )
 
 
-def _joint_label() -> str:
-    return f"_b123d_mate_{next(_MATE_LABELS)}"
+def _joint_label(*hosts: JointHost) -> str:
+    taken = {label for host in hosts for label in host.joints}
+    while True:
+        label = f"_b123d_mate_{next(_MATE_LABELS)}"
+        if label not in taken:
+            return label
 
 
 def _require_host(source: Shape | ProbedBody, role: str) -> JointHost:
@@ -149,12 +158,12 @@ def _feature_location(
         return Location(Plane(origin=feature.center(), z_dir=feature.normal_at()))
     if isinstance(feature, ProbedHole):
         return Axis(feature.center, feature.axis).location
-    if isinstance(feature, bool) or not isinstance(feature, int):
-        raise TypeError(
-            f"{role}_feature must be int, ProbedHole, Face, Plane, or Location, "
-            f"not {type(feature).__name__}"
-        )
-    return _hole_location(source, host, feature, role)
+    if isinstance(feature, int) and not isinstance(feature, bool):
+        return _hole_location(source, host, feature, role)
+    raise TypeError(
+        f"{role}_feature must be int, ProbedHole, Face, Plane, or Location, "
+        f"not {type(feature).__name__}"
+    )
 
 
 def _hole_location(
