@@ -303,8 +303,10 @@ from build123d import bom_screws, check_recess, insert_spec, self_tap_pilot
 assert self_tap_pilot(3.0) == 2.5
 spec = insert_spec("M3")
 assert spec.hole_diameter_mm == 4.0
+assert spec.length_mm == 6.0
 assert check_recess(3.0).ok
 bom = bom_screws((3.0, 2.0), engagement_mm=6.0, qty=4)
+assert bom.needed_mm == 11.0
 assert bom.length_mm == 12.0
 ```
 

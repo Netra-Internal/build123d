@@ -151,14 +151,18 @@ _INSERTS = {
     )
 }
 
+_INSERT_ALIASES = {
+    "m3": ALLOWED_INSERT_SIZE,
+    "M3-0.5": ALLOWED_INSERT_SIZE,
+    "m3-0.5": ALLOWED_INSERT_SIZE,
+}
+
 
 def _normalize_insert_size(size: str) -> str:
-    text = size.strip().upper().replace(" ", "")
-    if text.startswith("M3"):
-        rest = text[2:]
-        if rest in ("", "-0.5", "X0.5"):
-            return ALLOWED_INSERT_SIZE
-    return text
+    key = size.strip()
+    if key in _INSERTS:
+        return key
+    return _INSERT_ALIASES.get(key, key)
 
 
 def self_tap_pilot(major: float) -> float:

@@ -12,15 +12,30 @@ desc: Synthetic policy tests for M3 pilots, insert reject, BOM length, recess.
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
 import unittest
+from pathlib import Path
 
-from build123d import (
-    bom_screws,
-    check_recess,
-    insert_spec,
-    self_tap_pilot,
-)
+try:
+    from build123d import (
+        bom_screws,
+        check_recess,
+        insert_spec,
+        self_tap_pilot,
+    )
+except ModuleNotFoundError:
+    _path = Path(__file__).resolve().parents[1] / "src" / "build123d" / "fasteners.py"
+    _spec = importlib.util.spec_from_file_location("build123d_fasteners", _path)
+    _module = importlib.util.module_from_spec(_spec)
+    assert _spec.loader is not None
+    sys.modules[_spec.name] = _module
+    _spec.loader.exec_module(_module)
+    bom_screws = _module.bom_screws
+    check_recess = _module.check_recess
+    insert_spec = _module.insert_spec
+    self_tap_pilot = _module.self_tap_pilot
 
 
 class TestSelfTapPilot(unittest.TestCase):
@@ -55,6 +70,7 @@ class TestInsertSpec(unittest.TestCase):
     def test_accepts_m3_thread_alias(self):
         self.assertEqual(insert_spec("m3").size, "M3")
         self.assertEqual(insert_spec("M3-0.5").size, "M3")
+        self.assertEqual(insert_spec("m3-0.5").size, "M3")
 
 
 class TestRecess(unittest.TestCase):
@@ -69,6 +85,12 @@ class TestRecess(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertEqual(result.depth_mm, 2.0)
         self.assertEqual(result.to_dict()["ok"], False)
+
+    def test_just_under_minimum_is_not_ok(self):
+        result = check_recess(2.999)
+        self.assertFalse(result.ok)
+        self.assertEqual(result.depth_mm, 2.999)
+        self.assertEqual(result.minimum_mm, 3.0)
 
     def test_rejects_negative_depth(self):
         with self.assertRaises(ValueError):
