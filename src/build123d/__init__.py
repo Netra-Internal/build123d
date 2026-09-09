@@ -25,6 +25,7 @@ from build123d.persistence import modify_copyreg
 from build123d.exporters3d import *
 from build123d.text import available_fonts, FontManager
 from build123d.brep_from_stl import detect_primitives
+from build123d.probe import ProbedBody, ProbedHole, ProbeResult, probe
 from build123d.build_constants import (
     MC,
     MM,
@@ -213,6 +214,10 @@ __all__ = [
     "import_stl",
     "import_svg",
     "import_svg_as_buildline_code",
+    "probe",
+    "ProbedBody",
+    "ProbedHole",
+    "ProbeResult",
     # Other functions
     "delta",
     "edges_to_wires",

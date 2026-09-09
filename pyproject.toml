@@ -59,6 +59,9 @@ dependencies = [
     "threejs-materials>=1.2.1,<1.3.0",
 ]
 
+[project.scripts]
+b123d = "build123d.cli:console_main"
+
 [project.urls]
 "Homepage" = "https://github.com/gumyr/build123d"
 "Documentation" = "https://build123d.readthedocs.io/en/latest/index.html"

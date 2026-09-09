@@ -2,6 +2,8 @@
     <img alt="build123d logo" src="https://github.com/gumyr/build123d/raw/dev/docs/assets/build123d_logo/logo-banner.svg">
 </h1>
 
+> **Netra fork.** This repository is [Netra](https://github.com/Netra-Internal/build123d)’s fork of [gumyr/build123d](https://github.com/gumyr/build123d). The default branch is `dev`.
+
 [![Documentation Status](https://readthedocs.org/projects/build123d/badge/?version=latest)](https://build123d.readthedocs.io/en/latest/?badge=latest)
 [![tests](https://github.com/gumyr/build123d/actions/workflows/test.yml/badge.svg)](https://github.com/gumyr/build123d/actions/workflows/test.yml)
 [![pylint](https://github.com/gumyr/build123d/actions/workflows/lint.yml/badge.svg)](https://github.com/gumyr/build123d/actions/workflows/lint.yml)
@@ -202,6 +204,26 @@ step = import_step("nema-17-bracket.step")
 export_stl(part, "bracket.stl")
 export_step(part_context.part, "bracket.step")
 ```
+
+Probe a STEP before designing around it (library-first; STEP names and extra bodies are untrusted). Match rule for ``strip`` is exact equality on ``Shape.label`` after ``import_step`` (spaces / ``.`` / ``()`` become ``_``):
+
+```py
+from build123d import probe
+
+result = probe("nema-17-bracket.step", strip=["scrap"])
+for body in result.bodies:
+    print(body.name, body.bbox)
+    for hole in body.holes:  # center, unit axis, diameter — hard-code after checking
+        print(hole.center, hole.axis, hole.diameter)
+```
+
+Optional CLI wrapper (not a modeling tool):
+
+```
+b123d probe path/to/file.step --strip scrap --json out.json
+```
+
+Exit codes: `0` success, `2` missing file or usage error, `3` no bodies left (empty STEP or everything stripped), `1` other error. Every failure prints JSON with `"ok": false`.
 
 ### Further reading
 
